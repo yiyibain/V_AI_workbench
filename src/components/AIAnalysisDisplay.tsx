@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { AIAnalysis, Citation, ReasonConnection } from '../types';
+import { AIAnalysis, Citation } from '../types';
 import { MessageCircle, X, Send, Sparkles, ExternalLink, Database } from 'lucide-react';
 import { sendChatMessage } from '../services/chatService';
 import { useAnalysis } from '../contexts/AnalysisContext';

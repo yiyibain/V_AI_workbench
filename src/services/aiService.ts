@@ -591,7 +591,7 @@ function generateCitations(product: ProductPerformance): Citation[] {
 
   // 外部信息引用（基于产品特性）
   const relatedInfo = generateRelatedInfo(product);
-  relatedInfo.forEach((info, index) => {
+  relatedInfo.forEach((info) => {
     citations.push({
       id: `cite-${citationId++}`,
       type: 'external',
@@ -791,7 +791,7 @@ function extractReasonKeywords(reason: string): string[] {
   };
   
   keywords.forEach((keyword) => {
-    Object.entries(synonymMap).forEach(([key, synonyms]) => {
+    Object.entries(synonymMap).forEach(([, synonyms]) => {
       if (synonyms.some((s) => keyword.includes(s) || s.includes(keyword))) {
         synonyms.forEach((syn) => {
           if (!keywords.includes(syn)) {
@@ -823,7 +823,7 @@ function findSegmentsByReasonType(
     '渗透': ['渗透', '覆盖', '使用率', '处方'],
   };
   
-  Object.entries(typeKeywords).forEach(([type, keywords]) => {
+  Object.entries(typeKeywords).forEach(([, keywords]) => {
     if (keywords.some((kw) => reasonLower.includes(kw))) {
       segments.forEach((segment) => {
         const segmentLower = segment.text.toLowerCase();
@@ -843,7 +843,7 @@ function findSegmentsByReasonType(
 function generateExplanation(
   reason: string,
   matchedKeywords: string[],
-  segmentText: string
+  _segmentText: string
 ): string {
   if (matchedKeywords.length === 1) {
     return `报告中提到"${matchedKeywords[0]}"相关内容，通过数据分析得出${reason}的结论。`;
@@ -853,7 +853,7 @@ function generateExplanation(
 }
 
 // 基于类型生成解释
-function generateTypeBasedExplanation(reason: string, segmentText: string): string {
+function generateTypeBasedExplanation(reason: string, _segmentText: string): string {
   if (reason.includes('准入') || reason.includes('解限')) {
     return `报告中的解限率和医院准入相关数据表明，${reason}是导致当前表现的重要因素。`;
   } else if (reason.includes('价格')) {
