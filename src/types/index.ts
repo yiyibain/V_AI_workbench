@@ -62,6 +62,27 @@ export interface ProvincePerformance {
   period: string;
 }
 
+// 引用信息
+export interface Citation {
+  id: string;
+  type: 'internal' | 'external' | 'data';
+  source: string;
+  content: string;
+  relevance: string;
+  dataPoint?: string; // 关联的数据点，如"分子式内份额下降2.5%"
+}
+
+// 报告段落与原因的关联
+export interface ReasonConnection {
+  reasonId: string;
+  reasonText: string;
+  relatedSegments: {
+    segmentId: string;
+    segmentText: string;
+    explanation: string; // 解释为什么这段报告内容得出这个原因
+  }[];
+}
+
 // AI分析结果
 export interface AIAnalysis {
   type: 'product' | 'province';
@@ -72,8 +93,14 @@ export interface AIAnalysis {
   keyFindings: string[];
   riskAlerts: RiskAlert[];
   // 数据解读
-  interpretation: string;
+  interpretation: string; // Markdown格式
+  interpretationSegments?: {
+    id: string;
+    text: string;
+    citations?: string[]; // 引用ID数组
+  }[];
   possibleReasons: string[];
+  reasonConnections?: ReasonConnection[]; // 报告内容与原因的关联
   suggestedActions: {
     problemBreakdown: string[];
     interviewTargets: string[];
@@ -84,6 +111,7 @@ export interface AIAnalysis {
     content: string;
     relevance: string;
   }[];
+  citations?: Citation[]; // 所有引用信息
 }
 
 // 健康度评分维度

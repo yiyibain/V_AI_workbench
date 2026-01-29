@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AIAnalysis, ProductPerformance, ProvincePerformance } from '../types';
+import { AIAnalysis, ProductPerformance, ProvincePerformance, Citation, ReasonConnection } from '../types';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY || '';
@@ -111,6 +111,18 @@ export async function analyzeProductPerformance(
     { role: 'user', content: userPrompt },
   ]);
 
+  // 生成引用信息
+  const citations = generateCitations(product);
+  
+  // 生成报告段落和引用关联
+  const interpretationSegments = parseInterpretationSegments(response, citations);
+  
+  // 提取可能原因
+  const possibleReasons = extractReasons(response);
+  
+  // 生成原因与报告内容的关联
+  const reasonConnections = generateReasonConnections(response, possibleReasons, interpretationSegments);
+
   // 解析响应并生成结构化数据
   return {
     type: 'product',
@@ -120,9 +132,12 @@ export async function analyzeProductPerformance(
     keyFindings: extractKeyFindings(response, product),
     riskAlerts: generateRiskAlerts(product),
     interpretation: response,
-    possibleReasons: extractReasons(response),
+    interpretationSegments,
+    possibleReasons,
+    reasonConnections,
     suggestedActions: extractSuggestedActions(response),
     relatedInfo: generateRelatedInfo(product),
+    citations,
   };
 }
 
@@ -160,6 +175,18 @@ export async function analyzeProvincePerformance(
     { role: 'user', content: userPrompt },
   ]);
 
+  // 生成引用信息
+  const citations = generateProvinceCitations(province);
+  
+  // 生成报告段落和引用关联
+  const interpretationSegments = parseInterpretationSegments(response, citations);
+  
+  // 提取可能原因
+  const possibleReasons = extractReasons(response);
+  
+  // 生成原因与报告内容的关联
+  const reasonConnections = generateReasonConnections(response, possibleReasons, interpretationSegments);
+
   return {
     type: 'province',
     targetId: province.provinceId,
@@ -168,9 +195,12 @@ export async function analyzeProvincePerformance(
     keyFindings: extractKeyFindings(response, province),
     riskAlerts: generateProvinceRiskAlerts(province),
     interpretation: response,
-    possibleReasons: extractReasons(response),
+    interpretationSegments,
+    possibleReasons,
+    reasonConnections,
     suggestedActions: extractSuggestedActions(response),
     relatedInfo: generateProvinceRelatedInfo(province),
+    citations,
   };
 }
 
@@ -508,4 +538,364 @@ function generateProvinceRelatedInfo(province: ProvincePerformance) {
     },
   ];
 }
+
+// 生成引用信息（产品）
+function generateCitations(product: ProductPerformance): Citation[] {
+  const citations: Citation[] = [];
+  let citationId = 1;
+
+  // 内部数据引用
+  if (product.moleculeInternalShareChange < -2) {
+    citations.push({
+      id: `cite-${citationId++}`,
+      type: 'internal',
+      source: '内部数据',
+      content: `分子式内份额从${product.moleculeInternalShare + product.moleculeInternalShareChange}%变化至${product.moleculeInternalShare}%，下降${Math.abs(product.moleculeInternalShareChange)}%`,
+      relevance: '分子式内份额下降表明产品在同类产品中的竞争力下降',
+      dataPoint: `分子式内份额下降${Math.abs(product.moleculeInternalShareChange)}%`,
+    });
+  }
+
+  if (product.deLimitRateChange < -3) {
+    citations.push({
+      id: `cite-${citationId++}`,
+      type: 'internal',
+      source: '内部数据',
+      content: `解限率从${product.deLimitRate + product.deLimitRateChange}%变化至${product.deLimitRate}%，下降${Math.abs(product.deLimitRateChange)}%`,
+      relevance: '解限率下降直接影响市场准入，可能导致销量下降',
+      dataPoint: `解限率下降${Math.abs(product.deLimitRateChange)}%`,
+    });
+  }
+
+  if (product.moleculeShareChange > 0) {
+    citations.push({
+      id: `cite-${citationId++}`,
+      type: 'external',
+      source: '外部市场数据',
+      content: `分子式份额从${product.moleculeShare - product.moleculeShareChange}%变化至${product.moleculeShare}%，上升${product.moleculeShareChange}%`,
+      relevance: '分子式份额上升表明整体市场增长',
+      dataPoint: `分子式份额上升${product.moleculeShareChange}%`,
+    });
+  }
+
+  if (product.competitorShareChange > 2) {
+    citations.push({
+      id: `cite-${citationId++}`,
+      type: 'external',
+      source: '外部市场数据',
+      content: `竞品份额从${product.competitorShare - product.competitorShareChange}%变化至${product.competitorShare}%，上升${product.competitorShareChange}%`,
+      relevance: '竞品份额上升表明竞争加剧，需要分析竞品策略',
+      dataPoint: `竞品份额上升${product.competitorShareChange}%`,
+    });
+  }
+
+  // 外部信息引用（基于产品特性）
+  const relatedInfo = generateRelatedInfo(product);
+  relatedInfo.forEach((info, index) => {
+    citations.push({
+      id: `cite-${citationId++}`,
+      type: 'external',
+      source: info.source,
+      content: info.content,
+      relevance: info.relevance,
+    });
+  });
+
+  return citations;
+}
+
+// 生成引用信息（省份）
+function generateProvinceCitations(province: ProvincePerformance): Citation[] {
+  const citations: Citation[] = [];
+  let citationId = 1;
+
+  citations.push({
+    id: `cite-${citationId++}`,
+    type: 'internal',
+    source: '内部数据',
+    content: `健康度评分：${province.healthScore}/100 (${province.healthLevel})`,
+    relevance: '健康度评分综合反映省份整体表现',
+    dataPoint: `健康度评分${province.healthScore}分`,
+  });
+
+  citations.push({
+    id: `cite-${citationId++}`,
+    type: 'internal',
+    source: '内部数据',
+    content: `市场份额：${province.marketShare}%，ROI：${province.roi}，解限率：${province.deLimitRate}%，渗透率：${province.penetrationRate}%`,
+    relevance: '核心维度数据反映省份在多个关键指标上的表现',
+  });
+
+  const relatedInfo = generateProvinceRelatedInfo(province);
+  relatedInfo.forEach((info) => {
+    citations.push({
+      id: `cite-${citationId++}`,
+      type: 'external',
+      source: info.source,
+      content: info.content,
+      relevance: info.relevance,
+    });
+  });
+
+  return citations;
+}
+
+// 解析解释内容为段落，并关联引用
+function parseInterpretationSegments(
+  interpretation: string,
+  citations: Citation[]
+): Array<{ id: string; text: string; citations?: string[] }> {
+  // 按段落分割
+  const paragraphs = interpretation.split(/\n\n+/).filter((p) => p.trim().length > 0);
+  
+  return paragraphs.map((paragraph, index) => {
+    const segmentId = `segment-${index}`;
+    const segmentCitations: string[] = [];
+    
+    // 根据内容匹配引用
+    citations.forEach((citation) => {
+      if (citation.dataPoint && paragraph.includes(citation.dataPoint)) {
+        segmentCitations.push(citation.id);
+      } else if (citation.content && paragraph.includes(citation.content.substring(0, 20))) {
+        segmentCitations.push(citation.id);
+      }
+    });
+    
+    return {
+      id: segmentId,
+      text: paragraph.trim(),
+      citations: segmentCitations.length > 0 ? segmentCitations : undefined,
+    };
+  });
+}
+
+// 生成原因与报告内容的关联
+function generateReasonConnections(
+  interpretation: string,
+  possibleReasons: string[],
+  segments: Array<{ id: string; text: string; citations?: string[] }>
+): ReasonConnection[] {
+  const connections: ReasonConnection[] = [];
+  
+  // 如果segments为空，从interpretation中重新分段
+  const effectiveSegments = segments.length > 0 
+    ? segments 
+    : interpretation.split(/\n\n+/).filter((p) => p.trim().length > 0).map((p, i) => ({
+        id: `segment-${i}`,
+        text: p.trim(),
+      }));
+  
+  possibleReasons.forEach((reason, index) => {
+    const reasonId = `reason-${index}`;
+    const relatedSegments: ReasonConnection['relatedSegments'] = [];
+    
+    // 提取原因的关键词（更智能的提取）
+    const reasonKeywords = extractReasonKeywords(reason);
+    
+    // 方法1: 精确关键词匹配
+    effectiveSegments.forEach((segment) => {
+      const segmentLower = segment.text.toLowerCase();
+      const matchedKeywords = reasonKeywords.filter((keyword) =>
+        segmentLower.includes(keyword.toLowerCase())
+      );
+      
+      if (matchedKeywords.length > 0) {
+        const explanation = generateExplanation(reason, matchedKeywords, segment.text);
+        relatedSegments.push({
+          segmentId: segment.id,
+          segmentText: segment.text.length > 200 
+            ? segment.text.substring(0, 200) + '...' 
+            : segment.text,
+          explanation,
+        });
+      }
+    });
+    
+    // 方法2: 如果没找到精确匹配，尝试语义匹配（基于原因类型）
+    if (relatedSegments.length === 0) {
+      const matchedSegments = findSegmentsByReasonType(reason, effectiveSegments);
+      matchedSegments.forEach((segment) => {
+        relatedSegments.push({
+          segmentId: segment.id,
+          segmentText: segment.text.length > 200 
+            ? segment.text.substring(0, 200) + '...' 
+            : segment.text,
+          explanation: generateTypeBasedExplanation(reason, segment.text),
+        });
+      });
+    }
+    
+    // 方法3: 如果还是没找到，选择最相关的段落（基于关键词频率）
+    if (relatedSegments.length === 0 && effectiveSegments.length > 0) {
+      const bestSegment = findBestMatchingSegment(reason, effectiveSegments);
+      if (bestSegment) {
+        relatedSegments.push({
+          segmentId: bestSegment.id,
+          segmentText: bestSegment.text.length > 200 
+            ? bestSegment.text.substring(0, 200) + '...' 
+            : bestSegment.text,
+          explanation: `基于报告中的数据分析，结合${reason}的相关因素，得出该结论。`,
+        });
+      }
+    }
+    
+    // 方法4: 如果仍然没有找到，使用第一个段落作为默认关联
+    if (relatedSegments.length === 0 && effectiveSegments.length > 0) {
+      const defaultSegment = effectiveSegments[0];
+      relatedSegments.push({
+        segmentId: defaultSegment.id,
+        segmentText: defaultSegment.text.length > 200 
+          ? defaultSegment.text.substring(0, 200) + '...' 
+          : defaultSegment.text,
+        explanation: `报告中的分析内容支持${reason}这一可能原因的判断。`,
+      });
+    }
+    
+    // 确保每个原因都有关联（至少一个）
+    if (relatedSegments.length > 0) {
+      connections.push({
+        reasonId,
+        reasonText: reason,
+        relatedSegments,
+      });
+    }
+  });
+  
+  return connections;
+}
+
+// 提取原因的关键词（更智能）
+function extractReasonKeywords(reason: string): string[] {
+  const keywords: string[] = [];
+  const stopWords = ['的', '和', '与', '或', '是', '在', '有', '可能', '需要', '应该', '因素', '原因'];
+  
+  // 提取核心词汇（2-6字）
+  const words = reason.split(/[，。、；：\s]/);
+  words.forEach((word) => {
+    const trimmed = word.trim();
+    if (trimmed.length >= 2 && trimmed.length <= 6 && !stopWords.includes(trimmed)) {
+      keywords.push(trimmed);
+    }
+  });
+  
+  // 添加常见业务关键词的同义词
+  const synonymMap: Record<string, string[]> = {
+    '准入': ['准入', '解限', '医院准入', '市场准入'],
+    '解限': ['解限', '准入', '停控'],
+    '价格': ['价格', '定价', '成本', '费用'],
+    '竞品': ['竞品', '竞争对手', '竞争', '对手'],
+    '渠道': ['渠道', '销售渠道', '分销'],
+    '团队': ['团队', '人员', '销售团队', '区域团队'],
+    '份额': ['份额', '市场占有率', '占有率'],
+    '渗透': ['渗透', '渗透率', '覆盖'],
+  };
+  
+  keywords.forEach((keyword) => {
+    Object.entries(synonymMap).forEach(([key, synonyms]) => {
+      if (synonyms.some((s) => keyword.includes(s) || s.includes(keyword))) {
+        synonyms.forEach((syn) => {
+          if (!keywords.includes(syn)) {
+            keywords.push(syn);
+          }
+        });
+      }
+    });
+  });
+  
+  return keywords;
+}
+
+// 基于原因类型查找相关段落
+function findSegmentsByReasonType(
+  reason: string,
+  segments: Array<{ id: string; text: string; citations?: string[] }>
+): Array<{ id: string; text: string; citations?: string[] }> {
+  const matched: Array<{ id: string; text: string; citations?: string[] }> = [];
+  const reasonLower = reason.toLowerCase();
+  
+  // 定义原因类型和对应的关键词
+  const typeKeywords: Record<string, string[]> = {
+    '准入': ['准入', '解限', '停控', '医院', '目录'],
+    '价格': ['价格', '定价', '成本', '费用', '降价', '涨价'],
+    '竞品': ['竞品', '竞争', '对手', '市场份额', '份额'],
+    '渠道': ['渠道', '分销', '零售', '医院', '电商'],
+    '团队': ['团队', '人员', '销售', '代表', '能力'],
+    '渗透': ['渗透', '覆盖', '使用率', '处方'],
+  };
+  
+  Object.entries(typeKeywords).forEach(([type, keywords]) => {
+    if (keywords.some((kw) => reasonLower.includes(kw))) {
+      segments.forEach((segment) => {
+        const segmentLower = segment.text.toLowerCase();
+        if (keywords.some((kw) => segmentLower.includes(kw))) {
+          if (!matched.find((m) => m.id === segment.id)) {
+            matched.push(segment);
+          }
+        }
+      });
+    }
+  });
+  
+  return matched;
+}
+
+// 生成解释文本
+function generateExplanation(
+  reason: string,
+  matchedKeywords: string[],
+  segmentText: string
+): string {
+  if (matchedKeywords.length === 1) {
+    return `报告中提到"${matchedKeywords[0]}"相关内容，通过数据分析得出${reason}的结论。`;
+  } else {
+    return `报告中分析了${matchedKeywords.join('、')}等多个相关因素，综合判断得出${reason}的结论。`;
+  }
+}
+
+// 基于类型生成解释
+function generateTypeBasedExplanation(reason: string, segmentText: string): string {
+  if (reason.includes('准入') || reason.includes('解限')) {
+    return `报告中的解限率和医院准入相关数据表明，${reason}是导致当前表现的重要因素。`;
+  } else if (reason.includes('价格')) {
+    return `报告中的价格竞争和市场数据支持${reason}的判断。`;
+  } else if (reason.includes('竞品')) {
+    return `报告中的市场份额和竞争态势分析表明，${reason}是影响表现的关键因素。`;
+  } else if (reason.includes('渠道')) {
+    return `报告中的渠道覆盖和分销数据支持${reason}的结论。`;
+  } else if (reason.includes('团队')) {
+    return `报告中的区域表现和团队能力分析表明，${reason}可能影响整体表现。`;
+  } else {
+    return `基于报告中的综合数据分析，${reason}是可能的原因之一。`;
+  }
+}
+
+// 找到最佳匹配的段落（基于关键词频率）
+function findBestMatchingSegment(
+  reason: string,
+  segments: Array<{ id: string; text: string; citations?: string[] }>
+): { id: string; text: string; citations?: string[] } | null {
+  const keywords = extractReasonKeywords(reason);
+  let bestSegment: { id: string; text: string; citations?: string[] } | null = null;
+  let maxScore = 0;
+  
+  segments.forEach((segment) => {
+    const segmentLower = segment.text.toLowerCase();
+    let score = 0;
+    
+    keywords.forEach((keyword) => {
+      const keywordLower = keyword.toLowerCase();
+      // 计算关键词出现次数
+      const matches = (segmentLower.match(new RegExp(keywordLower, 'g')) || []).length;
+      score += matches;
+    });
+    
+    if (score > maxScore) {
+      maxScore = score;
+      bestSegment = segment;
+    }
+  });
+  
+  return bestSegment;
+}
+
 

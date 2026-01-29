@@ -5,6 +5,7 @@ import { analyzeProvincePerformance } from '../services/aiService';
 import { useAnalysis } from '../contexts/AnalysisContext';
 import { Loader2, ChevronDown, ChevronUp, TrendingUp, TrendingDown, RefreshCw, Target } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import AIAnalysisDisplay from './AIAnalysisDisplay';
 
 interface ProvinceDiagnosisProps {
   province: ProvincePerformance;
@@ -375,30 +376,8 @@ export default function ProvinceDiagnosis({ province }: ProvinceDiagnosisProps) 
           </div>
         ) : analysis ? (
           <div className="space-y-6">
-            {/* AI分析结果 */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
-              <h4 className="text-lg font-semibold text-blue-900 mb-3">AI智能分析</h4>
-              <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
-                {analysis.interpretation}
-              </div>
-            </div>
-
-            {/* 可能原因 */}
-            {analysis.possibleReasons.length > 0 && (
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-3">可能原因</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {analysis.possibleReasons.map((reason, index) => (
-                    <div
-                      key={index}
-                      className="bg-gray-50 rounded-lg p-3 border border-gray-200"
-                    >
-                      <span className="text-sm text-gray-700">{reason}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* AI分析结果 - 使用新的增强组件 */}
+            <AIAnalysisDisplay analysis={analysis} />
 
             {/* 建议行动 */}
             <div>
