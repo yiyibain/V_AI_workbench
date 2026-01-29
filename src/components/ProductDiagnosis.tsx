@@ -4,7 +4,7 @@ import { ProductPerformance, AIAnalysis, RiskAlert } from '../types';
 import { analyzeProductPerformance } from '../services/aiService';
 import { useAnalysis } from '../contexts/AnalysisContext';
 import { AlertTriangle, TrendingDown, TrendingUp, Loader2, ChevronDown, ChevronUp, RefreshCw, Target } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface ProductDiagnosisProps {
   product: ProductPerformance;
@@ -21,7 +21,6 @@ export default function ProductDiagnosis({ product }: ProductDiagnosisProps) {
     clearCachedAnalysis,
     needsRefresh,
     refreshTrigger,
-    markNeedsRefresh,
     clearNeedsRefresh,
   } = useAnalysis();
 

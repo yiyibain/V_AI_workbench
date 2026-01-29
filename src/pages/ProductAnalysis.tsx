@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ProductPerformance } from '../types';
 import { mockProductPerformance } from '../data/mockData';
 import ProductDiagnosis from '../components/ProductDiagnosis';
-import { Search, Filter } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 export default function ProductAnalysis() {
   const [selectedProduct, setSelectedProduct] = useState<ProductPerformance | null>(

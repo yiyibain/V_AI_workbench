@@ -111,11 +111,11 @@ export default function MarketOverview() {
     }));
   };
 
-  const handleFilterChange = (key: 'province' | 'brand', value: string) => {
+  const handleFilterChange = (key: 'province', value: string) => {
     setFilters((prev) => {
       const current = prev[key] || [];
       const newValue = current.includes(value)
-        ? current.filter((v) => v !== value)
+        ? current.filter((v: string) => v !== value)
         : [...current, value];
       return {
         ...prev,
@@ -281,7 +281,7 @@ export default function MarketOverview() {
               stackId="market"
               fill="#10b981"
             >
-              {processedData.map((entry, index) => (
+              {processedData.map((_, index) => (
                 <Cell key={`cell-huiZhi-${index}`} fill="#10b981" />
               ))}
             </Bar>
@@ -291,7 +291,7 @@ export default function MarketOverview() {
               stackId="market"
               fill="#ef4444"
             >
-              {processedData.map((entry, index) => (
+              {processedData.map((_, index) => (
                 <Cell key={`cell-competitor-${index}`} fill="#ef4444" />
               ))}
             </Bar>
@@ -301,7 +301,7 @@ export default function MarketOverview() {
               stackId="market"
               fill="#94a3b8"
             >
-              {processedData.map((entry, index) => (
+              {processedData.map((_, index) => (
                 <Cell key={`cell-other-${index}`} fill="#94a3b8" />
               ))}
               {/* 在最后一个堆叠柱子上方显示总份额 */}

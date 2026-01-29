@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ProvincePerformance } from '../types';
 import { mockProvincePerformance } from '../data/mockData';
 import ProvinceDiagnosis from '../components/ProvinceDiagnosis';
-import { Search, TrendingUp, TrendingDown } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 export default function ProvinceAnalysis() {

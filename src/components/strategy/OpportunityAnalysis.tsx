@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Opportunity, ReasonDimension, OpportunityAnalysis as OppAnalysis } from '../../types/strategy';
 import { mockOpportunities, defaultReasonDimensions } from '../../data/strategyMockData';
-import { Plus, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Plus, X, CheckCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export default function OpportunityAnalysis() {
@@ -70,7 +70,7 @@ export default function OpportunityAnalysis() {
     ];
   };
 
-  const generateMockStrategyDirections = (opp: Opportunity): any[] => {
+  const generateMockStrategyDirections = (_opp: Opportunity): any[] => {
     return [
       {
         id: 'sd1',

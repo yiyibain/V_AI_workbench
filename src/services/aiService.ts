@@ -175,7 +175,7 @@ export async function analyzeProvincePerformance(
 }
 
 // 辅助函数：提取关键发现
-function extractKeyFindings(response: string, data: any): string[] {
+function extractKeyFindings(_response: string, data: any): string[] {
   const findings: string[] = [];
   
   if (data.moleculeInternalShareChange && data.moleculeInternalShareChange < -2) {
@@ -292,7 +292,7 @@ function extractReasons(response: string): string[] {
 }
 
 // 提取建议行动
-function extractSuggestedActions(response: string) {
+function extractSuggestedActions(_response: string) {
   return {
     problemBreakdown: [
       '分省份拆解数据，识别问题集中区域',

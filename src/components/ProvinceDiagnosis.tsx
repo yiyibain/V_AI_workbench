@@ -21,7 +21,6 @@ export default function ProvinceDiagnosis({ province }: ProvinceDiagnosisProps) 
     clearCachedAnalysis,
     needsRefresh,
     refreshTrigger,
-    markNeedsRefresh,
     clearNeedsRefresh,
   } = useAnalysis();
 

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
 import MarketOverview from '../components/strategy/MarketOverview';
 import OpportunityAnalysis from '../components/strategy/OpportunityAnalysis';
 import StrategyCoCreation from '../components/strategy/StrategyCoCreation';
@@ -10,7 +9,6 @@ type TabType = 'overview' | 'opportunity' | 'coCreation';
 
 export default function StrategyPlanning() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
-  const location = useLocation();
 
   const tabs = [
     {
