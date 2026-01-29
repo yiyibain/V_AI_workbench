@@ -61,7 +61,7 @@ export default function Chatbot() {
     try {
       const response = await sendChatMessage([...messages, userMessage], {
         currentPage: getCurrentPageName(),
-        analysisData: currentAnalysis,
+        analysisData: currentAnalysis ?? undefined,
       });
 
       const assistantMessage: ChatMessage = {
