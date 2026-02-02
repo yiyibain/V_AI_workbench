@@ -181,7 +181,8 @@ export async function getIndicatorRecommendations(
       const effectAnalyses = mockIndicatorEffectAnalyses;
       const potentialIndicators = await getPotentialIndicatorsByStrategy(strategyId);
 
-      const response = await axios.post(
+      // API调用（目前未使用响应，返回模拟数据）
+      await axios.post(
         DEEPSEEK_API_URL,
         {
           model: 'deepseek-chat',
@@ -269,7 +270,8 @@ export async function generateIndicatorTargetPlan(
         return mockIndicatorTargetPlans.find((plan) => plan.indicatorId === indicatorId) || null;
       }
 
-      const response = await axios.post(
+      // API调用（目前未使用响应，返回模拟数据）
+      await axios.post(
         DEEPSEEK_API_URL,
         {
           model: 'deepseek-chat',
@@ -350,7 +352,7 @@ export async function adjustIndicatorData(
   currentData: any,
   dataType: 'potentialIndicators' | 'effectAnalysis' | 'recommendations' | 'baseline' | 'targetPlan',
   conversationMessages: Array<{ role: 'user' | 'assistant'; content: string }>,
-  context?: {
+  _context?: {
     strategyId?: string;
     indicatorId?: string;
     salesGrowth?: number;

@@ -7,7 +7,7 @@ import {
 } from '../../services/indicatorService';
 import { useIndicator } from '../../contexts/IndicatorContext';
 import IndicatorAdjustmentDialog from './IndicatorAdjustmentDialog';
-import { Search, Filter, ChevronDown, ChevronUp, CheckCircle2, Info, RefreshCw } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Info, RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export default function AvailableIndicators() {
@@ -26,7 +26,6 @@ export default function AvailableIndicators() {
   const {
     getCachedPotentialIndicators,
     setCachedPotentialIndicators,
-    clearCachedPotentialIndicators,
   } = useIndicator();
 
   useEffect(() => {

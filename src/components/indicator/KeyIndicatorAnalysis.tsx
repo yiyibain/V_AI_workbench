@@ -11,7 +11,7 @@ import {
 } from '../../services/indicatorService';
 import { useIndicator } from '../../contexts/IndicatorContext';
 import IndicatorAdjustmentDialog from './IndicatorAdjustmentDialog';
-import { TrendingUp, TrendingDown, AlertCircle, CheckCircle2, XCircle, Info, RefreshCw } from 'lucide-react';
+import { CheckCircle2, XCircle, Info, RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
   LineChart,
@@ -38,12 +38,9 @@ export default function KeyIndicatorAnalysis() {
   const [showRecommendationDialog, setShowRecommendationDialog] = useState(false);
 
   const {
-    getCachedEffectAnalysis,
     setCachedEffectAnalysis,
-    clearCachedEffectAnalysis,
     getCachedRecommendations,
     setCachedRecommendations,
-    clearCachedRecommendations,
   } = useIndicator();
 
   useEffect(() => {
@@ -68,7 +65,7 @@ export default function KeyIndicatorAnalysis() {
       }
 
       // 加载指标效果分析（全局缓存，使用特殊key）
-      const cacheKey = 'all-effect-analyses';
+      // const cacheKey = 'all-effect-analyses';
       if (!forceRefresh) {
         // 尝试从缓存加载（但这里缓存的是单个指标的分析，所以需要特殊处理）
         // 为了简化，我们直接加载所有分析，但可以优化为按需加载

@@ -15,8 +15,6 @@ import IndicatorAdjustmentDialog from './IndicatorAdjustmentDialog';
 import { TrendingUp, TrendingDown, Minus, Download, AlertCircle, Info, Loader2, RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
-  LineChart,
-  Line,
   BarChart,
   Bar,
   XAxis,
@@ -41,10 +39,8 @@ export default function IndicatorTargetSetting() {
   const {
     getCachedBaseline,
     setCachedBaseline,
-    clearCachedBaseline,
     getCachedTargetPlan,
     setCachedTargetPlan,
-    clearCachedTargetPlan,
   } = useIndicator();
 
   useEffect(() => {

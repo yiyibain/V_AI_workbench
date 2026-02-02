@@ -126,7 +126,6 @@ export default function IndicatorAdjustmentDialog({
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    const currentInput = inputValue.trim();
     setInputValue('');
     setIsLoading(true);
 
@@ -153,7 +152,8 @@ export default function IndicatorAdjustmentDialog({
       const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
         try {
-          const adjustedData = JSON.parse(jsonMatch[1]);
+          // 解析调整后的数据（如果需要可以在这里使用）
+          // const adjustedData = JSON.parse(jsonMatch[1]);
           // 可以询问用户是否应用
           setTimeout(() => {
             const confirmMessage: ChatMessage = {
