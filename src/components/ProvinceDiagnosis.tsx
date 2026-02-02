@@ -197,10 +197,10 @@ export default function ProvinceDiagnosis({ province }: ProvinceDiagnosisProps) 
             <Link
               to="/strategy-planning"
               className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
-              title="制定策略"
+              title="策略辅助"
             >
               <Target className="w-4 h-4" />
-              <span>制定策略</span>
+              <span>策略辅助</span>
             </Link>
             <div className={`px-4 py-2 rounded-lg border ${getHealthColor(province.healthLevel)}`}>
               <div className="text-sm font-semibold">{getHealthLabel(province.healthLevel)}</div>

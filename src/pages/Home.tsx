@@ -4,7 +4,7 @@ import { FileText, BarChart3, TrendingUp, Sparkles, AlertTriangle, Target } from
 export default function Home() {
   const features = [
     {
-      title: '公司体检报告',
+      title: '业务回顾',
       description: '链接多源市场与经营数据，AI自动生成诊断报告，识别各产品风险点',
       icon: FileText,
       color: 'bg-blue-500',
@@ -12,8 +12,8 @@ export default function Home() {
       status: 'active',
     },
     {
-      title: '策略制定',
-      description: '基于体检报告，智能生成策略建议和行动计划',
+      title: '策略辅助',
+      description: '基于业务回顾，智能生成策略建议和行动计划',
       icon: Target,
       color: 'bg-green-500',
       link: '/strategy-planning',
@@ -21,11 +21,11 @@ export default function Home() {
     },
     {
       title: '指标规划',
-      description: '设定和追踪关键业务指标，确保策略落地',
+      description: '链接内部客观指标数据，结合策略辅助与历史数据，推导最能提升结果的过程指标及合理目标值',
       icon: TrendingUp,
       color: 'bg-purple-500',
-      link: '#',
-      status: 'coming-soon',
+      link: '/indicator-planning',
+      status: 'active',
     },
     {
       title: '奖金设置',
@@ -122,11 +122,11 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 公司体检报告模块 */}
+        {/* 业务回顾模块 */}
         <div className="mb-16">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">公司体检报告</h2>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">业务回顾</h2>
               <p className="text-gray-600">
                 链接多源市场与经营数据，AI自动生成诊断报告，识别各产品风险点
               </p>

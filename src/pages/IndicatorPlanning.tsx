@@ -1,26 +1,33 @@
 import { useState } from 'react';
-import OpportunityAnalysis from '../components/strategy/OpportunityAnalysis';
-import StrategyCoCreation from '../components/strategy/StrategyCoCreation';
-import { Target, Users } from 'lucide-react';
+import AvailableIndicators from '../components/indicator/AvailableIndicators';
+import KeyIndicatorAnalysis from '../components/indicator/KeyIndicatorAnalysis';
+import IndicatorTargetSetting from '../components/indicator/IndicatorTargetSetting';
+import { List, Target, TrendingUp } from 'lucide-react';
 import { clsx } from 'clsx';
 
-type TabType = 'opportunity' | 'coCreation';
+type TabType = 'available' | 'analysis' | 'target';
 
-export default function StrategyPlanning() {
-  const [activeTab, setActiveTab] = useState<TabType>('opportunity');
+export default function IndicatorPlanning() {
+  const [activeTab, setActiveTab] = useState<TabType>('available');
 
   const tabs = [
     {
-      id: 'opportunity' as TabType,
-      label: '机会点甄别与提炼',
-      icon: Target,
-      description: '分析维度问答 + 机会提炼报告',
+      id: 'available' as TabType,
+      label: '可用指标列表',
+      icon: List,
+      description: '指标长清单 + 潜在指标短清单',
     },
     {
-      id: 'coCreation' as TabType,
-      label: '策略共创',
-      icon: Users,
-      description: '策略建议 + 编辑 + 优先级排序',
+      id: 'analysis' as TabType,
+      label: '关键指标维度识别',
+      icon: Target,
+      description: '指标效果判断 + 考核指标建议',
+    },
+    {
+      id: 'target' as TabType,
+      label: '指标目标值设定',
+      icon: TrendingUp,
+      description: '基线展示 + AI目标规划 + Excel导出',
     },
   ];
 
@@ -29,9 +36,9 @@ export default function StrategyPlanning() {
       {/* 页面头部 */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">策略辅助</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">指标规划</h1>
           <p className="text-gray-600">
-            基于问题诊断，对应产出分产品增长的优先级、各产品的增长点以及从渠道及内部动作上抓手
+            链接内部客观指标数据，结合策略辅助与历史数据，推导最能提升结果的过程指标及合理目标值
           </p>
         </div>
       </div>
@@ -66,8 +73,9 @@ export default function StrategyPlanning() {
 
         {/* 内容区域 */}
         <div>
-          {activeTab === 'opportunity' && <OpportunityAnalysis />}
-          {activeTab === 'coCreation' && <StrategyCoCreation />}
+          {activeTab === 'available' && <AvailableIndicators />}
+          {activeTab === 'analysis' && <KeyIndicatorAnalysis />}
+          {activeTab === 'target' && <IndicatorTargetSetting />}
         </div>
       </div>
     </div>

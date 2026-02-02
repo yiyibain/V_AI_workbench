@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, BarChart3, Settings, Sparkles } from 'lucide-react';
+import { LayoutDashboard, FileText, BarChart3, Settings, Sparkles, Target } from 'lucide-react';
 import { clsx } from 'clsx';
 import Chatbot from './Chatbot';
 
@@ -14,7 +14,8 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/', label: '首页', icon: LayoutDashboard },
     { path: '/product-analysis', label: '产品表现分析', icon: FileText },
     { path: '/province-analysis', label: '省份表现对比', icon: BarChart3 },
-    { path: '/strategy-planning', label: '策略制定', icon: Settings },
+    { path: '/strategy-planning', label: '策略辅助', icon: Settings },
+    { path: '/indicator-planning', label: '指标规划', icon: Target },
   ];
 
   return (

@@ -5,7 +5,7 @@ import { analyzeProductPerformance } from '../services/aiService';
 import { useAnalysis } from '../contexts/AnalysisContext';
 import { AlertTriangle, TrendingDown, TrendingUp, Loader2, ChevronDown, ChevronUp, RefreshCw, Target } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import AIAnalysisDisplay from './AIAnalysisDisplay';
+import DataInterpretation from './DataInterpretation';
 
 interface ProductDiagnosisProps {
   product: ProductPerformance;
@@ -149,10 +149,10 @@ export default function ProductDiagnosis({ product }: ProductDiagnosisProps) {
             <Link
               to="/strategy-planning"
               className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
-              title="制定策略"
+              title="策略辅助"
             >
               <Target className="w-4 h-4" />
-              <span>制定策略</span>
+              <span>策略辅助</span>
             </Link>
           </div>
         </div>
@@ -325,91 +325,14 @@ export default function ProductDiagnosis({ product }: ProductDiagnosisProps) {
         </div>
       </Section>
 
-      {/* 数据解读 - 等待AI分析完成 */}
+      {/* 数据解读 - 重新设计的板块 */}
       <Section
         title="数据解读"
-        subtitle="链接相关信息源，获取产品表现的可能原因，并智能建议进一步锁定问题的解决方案"
+        subtitle="基于具体数据下钻分析，识别异常值、深挖原因、提炼风险点并提供解决方案"
         expanded={expandedSections.has('data-interpretation')}
         onToggle={() => toggleSection('data-interpretation')}
       >
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
-            <span className="ml-3 text-gray-600">AI分析中...</span>
-          </div>
-        ) : analysis ? (
-          <div className="space-y-6">
-            {/* AI分析结果 - 使用新的增强组件 */}
-            <AIAnalysisDisplay analysis={analysis} />
-
-            {/* 建议行动 */}
-            <div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-3">建议行动</h4>
-              <div className="space-y-4">
-                <div>
-                  <h5 className="text-sm font-semibold text-gray-700 mb-2">问题拆解角度</h5>
-                  <ul className="space-y-1">
-                    {analysis.suggestedActions.problemBreakdown.map((action, index) => (
-                      <li key={index} className="text-sm text-gray-600 flex items-start">
-                        <span className="text-primary-600 mr-2">→</span>
-                        <span>{action}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h5 className="text-sm font-semibold text-gray-700 mb-2">可访谈对象</h5>
-                  <ul className="space-y-1">
-                    {analysis.suggestedActions.interviewTargets.map((target, index) => (
-                      <li key={index} className="text-sm text-gray-600 flex items-start">
-                        <span className="text-primary-600 mr-2">→</span>
-                        <span>{target}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h5 className="text-sm font-semibold text-gray-700 mb-2">数据分析方向</h5>
-                  <ul className="space-y-1">
-                    {analysis.suggestedActions.dataAnalysis.map((analysisItem, index) => (
-                      <li key={index} className="text-sm text-gray-600 flex items-start">
-                        <span className="text-primary-600 mr-2">→</span>
-                        <span>{analysisItem}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* 相关信息 */}
-            {analysis.relatedInfo.length > 0 && (
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-3">相关信息</h4>
-                <div className="space-y-3">
-                  {analysis.relatedInfo.map((info, index) => (
-                    <div
-                      key={index}
-                      className="bg-gray-50 border border-gray-200 rounded-lg p-4"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-1 rounded">
-                          {info.source}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-700 mb-2">{info.content}</p>
-                      <p className="text-xs text-gray-500 italic">{info.relevance}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-12 text-gray-500">
-            <p>等待AI分析完成...</p>
-          </div>
-        )}
+        <DataInterpretation product={product} analysis={analysis} loading={loading} />
       </Section>
     </div>
   );

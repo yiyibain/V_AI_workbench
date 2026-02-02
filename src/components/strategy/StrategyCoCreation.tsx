@@ -108,7 +108,7 @@ export default function StrategyCoCreation() {
         </div>
 
         <p className="text-sm text-gray-600 mb-4">
-          基于预先输入的策略制定方法论，AI对于发现的"机会点"脑暴数条初版"策略建议"。
+          基于预先输入的策略辅助方法论，AI对于发现的"机会点"脑暴数条初版"策略建议"。
           您可以拖拽调整优先级，或编辑、删除、复制策略。
         </p>
 
