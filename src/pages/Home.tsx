@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FileText, BarChart3, TrendingUp, Sparkles, AlertTriangle, Target } from 'lucide-react';
+import { FileText, BarChart3, TrendingUp, Sparkles, AlertTriangle, Target, DollarSign } from 'lucide-react';
 
 export default function Home() {
   const features = [
@@ -29,11 +29,11 @@ export default function Home() {
     },
     {
       title: '奖金设置',
-      description: '基于指标完成情况，智能计算和分配奖金',
-      icon: BarChart3,
+      description: '结合全国整体策略制定，AI模拟不同奖金权重对行为与销量的影响，优化全国品牌间激励分配方案',
+      icon: DollarSign,
       color: 'bg-orange-500',
-      link: '#',
-      status: 'coming-soon',
+      link: '/bonus-setting',
+      status: 'active',
     },
   ];
 

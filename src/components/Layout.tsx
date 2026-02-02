@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, BarChart3, Settings, Sparkles, Target } from 'lucide-react';
+import { LayoutDashboard, FileText, BarChart3, Settings, Sparkles, Target, DollarSign } from 'lucide-react';
 import { clsx } from 'clsx';
 import Chatbot from './Chatbot';
 
@@ -16,6 +16,7 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/province-analysis', label: '省份表现对比', icon: BarChart3 },
     { path: '/strategy-planning', label: '策略辅助', icon: Settings },
     { path: '/indicator-planning', label: '指标规划', icon: Target },
+    { path: '/bonus-setting', label: '奖金设置', icon: DollarSign },
   ];
 
   return (

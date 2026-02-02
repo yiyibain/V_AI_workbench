@@ -7,6 +7,7 @@ import ProductAnalysis from './pages/ProductAnalysis';
 import ProvinceAnalysis from './pages/ProvinceAnalysis';
 import StrategyPlanning from './pages/StrategyPlanning';
 import IndicatorPlanning from './pages/IndicatorPlanning';
+import BonusSetting from './pages/BonusSetting';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
               <Route path="/province-analysis" element={<ProvinceAnalysis />} />
               <Route path="/strategy-planning" element={<StrategyPlanning />} />
               <Route path="/indicator-planning" element={<IndicatorPlanning />} />
+              <Route path="/bonus-setting" element={<BonusSetting />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>

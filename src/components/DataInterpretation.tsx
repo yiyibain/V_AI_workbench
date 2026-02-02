@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { AIAnalysis } from '../types';
+import InlineAIChat from './InlineAIChat';
 
 interface DataInterpretationProps {
   product: ProductPerformance;
@@ -38,7 +39,10 @@ export default function DataInterpretation({
   const [expandedAnomalies, setExpandedAnomalies] = useState<Set<string>>(new Set());
   const [expandedRisks, setExpandedRisks] = useState<Set<string>>(new Set());
   const [selectedText, setSelectedText] = useState<string>('');
+  const [chatPosition, setChatPosition] = useState<{ top: number; left: number } | null>(null);
+  const [showChat, setShowChat] = useState(false);
   const selectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // 使用useMemo缓存数据，避免每次渲染都重新生成
   const provinceDetails = useMemo(
@@ -100,6 +104,22 @@ export default function DataInterpretation({
       const selection = window.getSelection();
       if (selection && selection.toString().trim().length > 0) {
         const selected = selection.toString().trim();
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        
+        // 计算对话面板位置（在选中文本下方）
+        if (containerRef.current) {
+          const containerRect = containerRef.current.getBoundingClientRect();
+          const scrollTop = window.scrollY || containerRef.current.scrollTop || 0;
+          const scrollLeft = window.scrollX || containerRef.current.scrollLeft || 0;
+          
+          // 计算相对于容器的位置（考虑滚动）
+          const top = rect.bottom - containerRect.top + scrollTop + 10;
+          const left = Math.max(10, Math.min(rect.left - containerRect.left + scrollLeft, containerRect.width - 400));
+          
+          setChatPosition({ top, left });
+        }
+        
         // 只有当选择的文本真正改变时才更新
         if (selected !== selectedText) {
           setSelectedText(selected);
@@ -107,19 +127,29 @@ export default function DataInterpretation({
       } else {
         if (selectedText !== '') {
           setSelectedText('');
+          setChatPosition(null);
+          setShowChat(false);
         }
       }
-    }, 100); // 100ms防抖
+    }, 150); // 150ms防抖
+  };
+
+  // 处理鼠标抬起事件（用于文本选择）
+  const handleMouseUp = () => {
+    handleTextSelection();
   };
 
   useEffect(() => {
-    document.addEventListener('selectionchange', handleTextSelection);
-    return () => {
-      document.removeEventListener('selectionchange', handleTextSelection);
-      if (selectionTimeoutRef.current) {
-        clearTimeout(selectionTimeoutRef.current);
-      }
-    };
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        container.removeEventListener('mouseup', handleMouseUp);
+        if (selectionTimeoutRef.current) {
+          clearTimeout(selectionTimeoutRef.current);
+        }
+      };
+    }
   }, [selectedText]);
 
   if (loading) {
@@ -142,7 +172,7 @@ export default function DataInterpretation({
   }
 
   return (
-    <div className="space-y-6">
+    <div ref={containerRef} className="space-y-6 relative">
       {/* 1. 异常值发现 */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center space-x-2 mb-4">
@@ -277,13 +307,7 @@ export default function DataInterpretation({
                     {selectedText && (
                       <div className="border-t pt-3">
                         <button
-                          onClick={() => {
-                            // 触发AI对话
-                            const event = new CustomEvent('openChat', {
-                              detail: { text: selectedText, context: anomaly },
-                            });
-                            window.dispatchEvent(event);
-                          }}
+                          onClick={() => setShowChat(true)}
                           className="flex items-center space-x-2 px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm"
                         >
                           <MessageCircle className="w-4 h-4" />
@@ -561,20 +585,14 @@ export default function DataInterpretation({
           riskPoints={riskPoints}
         />
 
-        {selectedText && (
+        {selectedText && !showChat && (
           <div className="mt-4 p-3 bg-white border border-primary-300 rounded-lg shadow-sm">
             <div className="text-xs text-gray-600 mb-1">已选中文本：</div>
             <div className="text-sm text-gray-800 font-medium mb-2 line-clamp-2">
               "{selectedText}"
             </div>
             <button
-              onClick={() => {
-                const event = new CustomEvent('openChat', {
-                  detail: { text: selectedText, context: 'analysis' },
-                });
-                window.dispatchEvent(event);
-                setSelectedText(''); // 点击后清空选择
-              }}
+              onClick={() => setShowChat(true)}
               className="flex items-center space-x-2 px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm"
             >
               <MessageCircle className="w-4 h-4" />
@@ -583,6 +601,22 @@ export default function DataInterpretation({
           </div>
         )}
       </div>
+
+      {/* 内联AI对话面板 - 显示在选中内容附近 */}
+      {showChat && selectedText && chatPosition && (
+        <InlineAIChat
+          selectedText={selectedText}
+          position={chatPosition}
+          context={{ product, analysis }}
+          onClose={() => {
+            setShowChat(false);
+            setSelectedText('');
+            setChatPosition(null);
+            // 清空选择
+            window.getSelection()?.removeAllRanges();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1086,7 +1120,7 @@ function SummaryContent({
   }, [product, anomalies, rootCauses, riskPoints]);
 
   return (
-    <div className="prose prose-sm max-w-none text-gray-700 bg-blue-50 border border-blue-200 rounded-lg p-4">
+    <div className="prose prose-sm max-w-none text-gray-700 bg-blue-50 border border-blue-200 rounded-lg p-4 select-text">
       <div className="text-sm leading-relaxed">
         <p className="mb-3">
           <strong>整体表现：</strong>
