@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { AIAnalysis, Citation } from '../types';
+import { AIAnalysis, Citation, ReasonConnection } from '../types';
 import { MessageCircle, X, Send, Sparkles, ExternalLink, Database } from 'lucide-react';
 import { sendChatMessage } from '../services/chatService';
 import { useAnalysis } from '../contexts/AnalysisContext';
@@ -122,7 +122,7 @@ export default function AIAnalysisDisplay({ analysis }: AIAnalysisDisplayProps) 
 
   // 获取引用信息
   const getCitation = (citationId: string): Citation | undefined => {
-    return analysis.citations?.find((c) => c.id === citationId);
+    return analysis.citations?.find((c: Citation) => c.id === citationId);
   };
 
   // 渲染带引用的Markdown内容
@@ -140,7 +140,7 @@ export default function AIAnalysisDisplay({ analysis }: AIAnalysisDisplayProps) 
 
     return (
       <div className="space-y-4">
-        {analysis.interpretationSegments.map((segment) => (
+        {analysis.interpretationSegments.map((segment: { id: string; text: string; citations?: string[] }) => (
           <div key={segment.id} className="relative">
             <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-blue-600 prose-pre:bg-gray-100">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -149,7 +149,7 @@ export default function AIAnalysisDisplay({ analysis }: AIAnalysisDisplayProps) 
             </div>
             {segment.citations && segment.citations.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
-                {segment.citations.map((citationId) => {
+                {segment.citations.map((citationId: string) => {
                   const citation = getCitation(citationId);
                   if (!citation) return null;
                   return (
@@ -251,10 +251,10 @@ export default function AIAnalysisDisplay({ analysis }: AIAnalysisDisplayProps) 
         <div>
           <h4 className="text-lg font-semibold text-gray-900 mb-3">可能原因</h4>
           <div className="space-y-3">
-            {analysis.possibleReasons.map((reason, index) => {
+            {analysis.possibleReasons.map((reason: string, index: number) => {
               const reasonId = `reason-${index}`;
               const connection = analysis.reasonConnections?.find(
-                (conn) => conn.reasonId === reasonId
+                (conn: ReasonConnection) => conn.reasonId === reasonId
               );
               const isExpanded = expandedReasons.has(reasonId);
 
@@ -292,7 +292,7 @@ export default function AIAnalysisDisplay({ analysis }: AIAnalysisDisplayProps) 
                       <div className="text-xs font-semibold text-gray-600 mb-2">
                         基于以下报告内容得出：
                       </div>
-                      {connection.relatedSegments.map((segment, segIndex) => (
+                      {connection.relatedSegments.map((segment: { segmentId: string; segmentText: string; explanation: string }, segIndex: number) => (
                         <div key={segIndex} className="pl-4 border-l-2 border-blue-200">
                           <div className="text-sm text-gray-800 mb-1 italic">
                             "{segment.segmentText}"

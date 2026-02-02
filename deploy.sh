@@ -44,3 +44,4 @@ git checkout main
 echo "✅ 部署完成！Vercel将自动开始部署。"
 echo "📊 查看部署状态: https://vercel.com/dashboard"
 
+
