@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, BarChart3, Settings, Sparkles, Target, DollarSign } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, Sparkles, Target, DollarSign } from 'lucide-react';
 import { clsx } from 'clsx';
 import Chatbot from './Chatbot';
 

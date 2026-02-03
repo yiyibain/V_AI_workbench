@@ -2,8 +2,6 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { ProductPerformance } from '../types';
 import {
   AnomalyFinding,
-  RootCauseAnalysis,
-  RiskPoint,
   MacroRecommendation,
   ProvinceDetailPerformance,
 } from '../types/analysis';
@@ -11,8 +9,6 @@ import { generateProvinceDetailData } from '../data/hospitalMockData';
 import { mockProvincePerformance } from '../data/mockData';
 import {
   AlertTriangle,
-  TrendingDown,
-  TrendingUp,
   MapPin,
   Building2,
   MessageCircle,

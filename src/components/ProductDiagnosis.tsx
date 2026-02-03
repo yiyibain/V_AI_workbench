@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ProductPerformance, AIAnalysis, RiskAlert, QuarterlyIndicator } from '../types';
+import { ProductPerformance, AIAnalysis, RiskAlert } from '../types';
 import { analyzeProductPerformance } from '../services/aiService';
 import { useAnalysis } from '../contexts/AnalysisContext';
-import { AlertTriangle, TrendingDown, TrendingUp, Loader2, ChevronDown, ChevronUp, RefreshCw, Target, X } from 'lucide-react';
+import { AlertTriangle, TrendingDown, TrendingUp, ChevronDown, ChevronUp, RefreshCw, Target, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import DataInterpretation from './DataInterpretation';
 
@@ -238,28 +238,24 @@ export default function ProductDiagnosis({ product }: ProductDiagnosisProps) {
               label="分子式份额"
               value={`${product.moleculeShare}%`}
               change={product.moleculeShareChange}
-              indicatorKey="moleculeShare"
               onClick={() => handleIndicatorClick('moleculeShare')}
             />
             <MetricCard
               label="分子式内份额"
               value={`${product.moleculeInternalShare}%`}
               change={product.moleculeInternalShareChange}
-              indicatorKey="moleculeInternalShare"
               onClick={() => handleIndicatorClick('moleculeInternalShare')}
             />
             <MetricCard
               label="竞品份额"
               value={`${product.competitorShare}%`}
               change={product.competitorShareChange}
-              indicatorKey="competitorShare"
               onClick={() => handleIndicatorClick('competitorShare')}
             />
             <MetricCard
               label="解限率"
               value={`${product.deLimitRate}%`}
               change={product.deLimitRateChange}
-              indicatorKey="deLimitRate"
               onClick={() => handleIndicatorClick('deLimitRate')}
             />
           </div>
@@ -446,13 +442,11 @@ function MetricCard({
   label, 
   value, 
   change, 
-  indicatorKey,
   onClick 
 }: { 
   label: string; 
   value: string; 
   change: number;
-  indicatorKey?: string;
   onClick?: () => void;
 }) {
   const isPositive = change > 0;
