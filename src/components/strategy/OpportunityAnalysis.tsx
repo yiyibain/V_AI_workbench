@@ -207,13 +207,13 @@ export default function OpportunityAnalysis() {
       {/* 机会点选择 */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900">选择机会点</h3>
+          <h3 className="text-lg font-bold text-gray-900">潜在问题列表</h3>
           <button
             onClick={() => setShowAddOpportunity(!showAddOpportunity)}
             className="flex items-center space-x-2 px-3 py-1.5 text-sm text-primary-600 hover:bg-primary-50 rounded-lg border border-primary-200"
           >
             <Plus className="w-4 h-4" />
-            <span>添加机会点</span>
+            <span>添加问题</span>
           </button>
         </div>
 

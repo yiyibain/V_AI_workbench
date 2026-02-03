@@ -1,4 +1,4 @@
-import { Product, ProductPerformance, Province, ProvincePerformance } from '../types';
+import { Product, ProductPerformance, Province, ProvincePerformance, BasicIndicators } from '../types';
 
 // 模拟产品数据
 export const mockProducts: Product[] = [
@@ -277,4 +277,246 @@ export const mockProvincePerformance: ProvincePerformance[] = [
     period: '2024-Q1',
   },
 ];
+
+// 基础指标数据（以立普妥为例）
+const mockBasicIndicators: BasicIndicators[] = [
+  {
+    productId: 'p1',
+    productName: '立普妥',
+    quarterlyData: [
+      {
+        period: '2023-Q2',
+        statinShare: 9.8, // 立普妥占他汀份额
+        coreHospitalPenetration: 9.5, // 核心影响型医院渗透率
+        stableDistributionRate: 58.2, // 稳定分销率
+        weightedDeLimitRate: 19.5, // 加权解限率
+        targetHospitalPenetration: 9.2, // 目标影响型医院渗透率
+      },
+      {
+        period: '2023-Q3',
+        statinShare: 10.2,
+        coreHospitalPenetration: 9.8,
+        stableDistributionRate: 59.5,
+        weightedDeLimitRate: 20.1,
+        targetHospitalPenetration: 9.6,
+      },
+      {
+        period: '2023-Q4',
+        statinShare: 10.5,
+        coreHospitalPenetration: 10.2,
+        stableDistributionRate: 60.8,
+        weightedDeLimitRate: 20.5,
+        targetHospitalPenetration: 10.1,
+      },
+      {
+        period: '2024-Q1',
+        statinShare: 10.8,
+        coreHospitalPenetration: 10.5,
+        stableDistributionRate: 61.2,
+        weightedDeLimitRate: 21.2,
+        targetHospitalPenetration: 10.3,
+      },
+    ],
+  },
+  {
+    productId: 'p2',
+    productName: '络活喜',
+    quarterlyData: [
+      {
+        period: '2023-Q2',
+        statinShare: 8.5,
+        coreHospitalPenetration: 8.2,
+        stableDistributionRate: 55.8,
+        weightedDeLimitRate: 18.5,
+        targetHospitalPenetration: 8.0,
+      },
+      {
+        period: '2023-Q3',
+        statinShare: 8.8,
+        coreHospitalPenetration: 8.5,
+        stableDistributionRate: 56.5,
+        weightedDeLimitRate: 19.0,
+        targetHospitalPenetration: 8.3,
+      },
+      {
+        period: '2023-Q4',
+        statinShare: 9.0,
+        coreHospitalPenetration: 8.8,
+        stableDistributionRate: 57.2,
+        weightedDeLimitRate: 19.5,
+        targetHospitalPenetration: 8.5,
+      },
+      {
+        period: '2024-Q1',
+        statinShare: 9.2,
+        coreHospitalPenetration: 9.0,
+        stableDistributionRate: 58.0,
+        weightedDeLimitRate: 20.0,
+        targetHospitalPenetration: 8.8,
+      },
+    ],
+  },
+  {
+    productId: 'p3',
+    productName: '西乐葆',
+    quarterlyData: [
+      {
+        period: '2023-Q2',
+        statinShare: 7.2,
+        coreHospitalPenetration: 7.0,
+        stableDistributionRate: 52.5,
+        weightedDeLimitRate: 17.8,
+        targetHospitalPenetration: 6.8,
+      },
+      {
+        period: '2023-Q3',
+        statinShare: 7.5,
+        coreHospitalPenetration: 7.3,
+        stableDistributionRate: 53.2,
+        weightedDeLimitRate: 18.2,
+        targetHospitalPenetration: 7.1,
+      },
+      {
+        period: '2023-Q4',
+        statinShare: 7.8,
+        coreHospitalPenetration: 7.5,
+        stableDistributionRate: 54.0,
+        weightedDeLimitRate: 18.8,
+        targetHospitalPenetration: 7.3,
+      },
+      {
+        period: '2024-Q1',
+        statinShare: 8.0,
+        coreHospitalPenetration: 7.8,
+        stableDistributionRate: 54.5,
+        weightedDeLimitRate: 19.2,
+        targetHospitalPenetration: 7.5,
+      },
+    ],
+  },
+  {
+    productId: 'p4',
+    productName: '乐瑞卡',
+    quarterlyData: [
+      {
+        period: '2023-Q2',
+        statinShare: 6.5,
+        coreHospitalPenetration: 6.2,
+        stableDistributionRate: 50.2,
+        weightedDeLimitRate: 16.5,
+        targetHospitalPenetration: 6.0,
+      },
+      {
+        period: '2023-Q3',
+        statinShare: 6.8,
+        coreHospitalPenetration: 6.5,
+        stableDistributionRate: 51.0,
+        weightedDeLimitRate: 17.0,
+        targetHospitalPenetration: 6.3,
+      },
+      {
+        period: '2023-Q4',
+        statinShare: 7.0,
+        coreHospitalPenetration: 6.8,
+        stableDistributionRate: 51.8,
+        weightedDeLimitRate: 17.5,
+        targetHospitalPenetration: 6.5,
+      },
+      {
+        period: '2024-Q1',
+        statinShare: 7.2,
+        coreHospitalPenetration: 7.0,
+        stableDistributionRate: 52.5,
+        weightedDeLimitRate: 18.0,
+        targetHospitalPenetration: 6.8,
+      },
+    ],
+  },
+  {
+    productId: 'p5',
+    productName: '左洛复',
+    quarterlyData: [
+      {
+        period: '2023-Q2',
+        statinShare: 5.8,
+        coreHospitalPenetration: 5.5,
+        stableDistributionRate: 48.5,
+        weightedDeLimitRate: 15.2,
+        targetHospitalPenetration: 5.3,
+      },
+      {
+        period: '2023-Q3',
+        statinShare: 6.0,
+        coreHospitalPenetration: 5.8,
+        stableDistributionRate: 49.2,
+        weightedDeLimitRate: 15.8,
+        targetHospitalPenetration: 5.5,
+      },
+      {
+        period: '2023-Q4',
+        statinShare: 5.9,
+        coreHospitalPenetration: 5.6,
+        stableDistributionRate: 48.8,
+        weightedDeLimitRate: 15.5,
+        targetHospitalPenetration: 5.4,
+      },
+      {
+        period: '2024-Q1',
+        statinShare: 5.7,
+        coreHospitalPenetration: 5.4,
+        stableDistributionRate: 48.0,
+        weightedDeLimitRate: 15.0,
+        targetHospitalPenetration: 5.2,
+      },
+    ],
+  },
+  {
+    productId: 'p6',
+    productName: '怡诺思',
+    quarterlyData: [
+      {
+        period: '2023-Q2',
+        statinShare: 6.2,
+        coreHospitalPenetration: 6.0,
+        stableDistributionRate: 49.5,
+        weightedDeLimitRate: 16.2,
+        targetHospitalPenetration: 5.8,
+      },
+      {
+        period: '2023-Q3',
+        statinShare: 6.5,
+        coreHospitalPenetration: 6.2,
+        stableDistributionRate: 50.2,
+        weightedDeLimitRate: 16.8,
+        targetHospitalPenetration: 6.0,
+      },
+      {
+        period: '2023-Q4',
+        statinShare: 6.3,
+        coreHospitalPenetration: 6.1,
+        stableDistributionRate: 49.8,
+        weightedDeLimitRate: 16.5,
+        targetHospitalPenetration: 5.9,
+      },
+      {
+        period: '2024-Q1',
+        statinShare: 6.4,
+        coreHospitalPenetration: 6.2,
+        stableDistributionRate: 50.5,
+        weightedDeLimitRate: 17.0,
+        targetHospitalPenetration: 6.1,
+      },
+    ],
+  },
+];
+
+// 获取产品的基础指标数据
+export function getBasicIndicators(productId: string): BasicIndicators {
+  const indicators = mockBasicIndicators.find(ind => ind.productId === productId);
+  if (!indicators) {
+    // 如果找不到，返回默认数据（立普妥的数据）
+    return mockBasicIndicators[0];
+  }
+  return indicators;
+}
 

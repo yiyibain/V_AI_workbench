@@ -15,6 +15,25 @@ export interface QuarterlyIndicator {
   deLimitRate: number;
 }
 
+// 基础指标季度数据
+export interface BasicIndicatorQuarterly {
+  period: string; // 季度，如 "2024-Q1"
+  // 结果指标
+  statinShare: number; // 立普妥占他汀份额 (%)
+  // 过程指标
+  coreHospitalPenetration: number; // 核心影响型医院渗透率 (%)
+  stableDistributionRate: number; // 稳定分销率 (%)
+  weightedDeLimitRate: number; // 加权解限率 (%)
+  targetHospitalPenetration: number; // 目标影响型医院渗透率 (%)
+}
+
+// 基础指标数据
+export interface BasicIndicators {
+  productId: string;
+  productName: string;
+  quarterlyData: BasicIndicatorQuarterly[]; // 过往4个季度数据
+}
+
 // 产品表现数据
 export interface ProductPerformance {
   productId: string;

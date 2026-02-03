@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import { ProductPerformance } from '../types';
 import { mockProductPerformance } from '../data/mockData';
-import ProductDiagnosis from '../components/ProductDiagnosis';
 import MarketOverview from '../components/strategy/MarketOverview';
-import { Search, BarChart3, FileText } from 'lucide-react';
+import BasicIndicatorsDisplay from '../components/BasicIndicatorsDisplay';
+import { getBasicIndicators } from '../data/mockData';
+import { Search, BarChart3, TrendingUp } from 'lucide-react';
 import { clsx } from 'clsx';
 
-type ViewType = 'diagnosis' | 'market';
+type ViewType = 'basic' | 'market';
 
 export default function ProductAnalysis() {
   const [selectedProduct, setSelectedProduct] = useState<ProductPerformance | null>(
     mockProductPerformance[0]
   );
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeView, setActiveView] = useState<ViewType>('diagnosis');
+  const [activeView, setActiveView] = useState<ViewType>('basic');
 
   const filteredProducts = mockProductPerformance.filter((product) =>
     product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -22,10 +23,10 @@ export default function ProductAnalysis() {
 
   const views = [
     {
-      id: 'diagnosis' as ViewType,
-      label: '产品诊断报告',
-      icon: FileText,
-      description: '就数论数 + 数据解读，AI自动识别风险点',
+      id: 'basic' as ViewType,
+      label: '基础指标展示',
+      icon: TrendingUp,
+      description: '过往4个季度核心结果和过程指标',
     },
     {
       id: 'market' as ViewType,
@@ -78,7 +79,7 @@ export default function ProductAnalysis() {
         </div>
 
         {/* 内容区域 */}
-        {activeView === 'diagnosis' ? (
+        {activeView === 'basic' ? (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* 左侧产品列表 */}
             <div className="lg:col-span-1">
@@ -116,13 +117,16 @@ export default function ProductAnalysis() {
               </div>
             </div>
 
-            {/* 右侧诊断报告 */}
+            {/* 右侧基础指标展示 */}
             <div className="lg:col-span-3">
               {selectedProduct ? (
-                <ProductDiagnosis product={selectedProduct} />
+                <BasicIndicatorsDisplay 
+                  indicators={getBasicIndicators(selectedProduct.productId)} 
+                  product={selectedProduct}
+                />
               ) : (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-                  <p className="text-gray-500">请从左侧选择一个产品查看诊断报告</p>
+                  <p className="text-gray-500">请从左侧选择一个产品查看基础指标</p>
                 </div>
               )}
             </div>

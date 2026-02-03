@@ -3,15 +3,17 @@ import {
   IndicatorEffectAnalysis,
   IndicatorRecommendation,
   Strategy,
+  Indicator,
 } from '../../types/indicator';
 import {
   getAllIndicatorEffectAnalyses,
   getIndicatorRecommendations,
   getAllStrategies,
+  getAllIndicators,
 } from '../../services/indicatorService';
 import { useIndicator } from '../../contexts/IndicatorContext';
 import IndicatorAdjustmentDialog from './IndicatorAdjustmentDialog';
-import { CheckCircle2, XCircle, Info, RefreshCw, Plus, Edit2, Trash2, X } from 'lucide-react';
+import { CheckCircle2, XCircle, Info, RefreshCw, Edit2, Trash2, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
   LineChart,
@@ -29,24 +31,18 @@ import {
 export default function KeyIndicatorAnalysis() {
   const [effectAnalyses, setEffectAnalyses] = useState<IndicatorEffectAnalysis[]>([]);
   const [recommendations, setRecommendations] = useState<IndicatorRecommendation[]>([]);
+  const [availableIndicators, setAvailableIndicators] = useState<Indicator[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [loadingIndicators, setLoadingIndicators] = useState(false);
   const [activeTab, setActiveTab] = useState<'effect' | 'recommendation'>('effect');
   const [showEffectDialog, setShowEffectDialog] = useState(false);
   const [showRecommendationDialog, setShowRecommendationDialog] = useState(false);
-  const [showAddStrategy, setShowAddStrategy] = useState(false);
   const [editingStrategy, setEditingStrategy] = useState<Strategy | null>(null);
-  const [newStrategy, setNewStrategy] = useState({
-    name: '',
-    description: '',
-    focusAreas: '',
-    targetOutcomes: '',
-  });
 
   const {
     strategies,
     setStrategies,
-    addStrategy,
     updateStrategy,
     deleteStrategy,
     selectedStrategyTab1,
@@ -61,6 +57,7 @@ export default function KeyIndicatorAnalysis() {
 
   useEffect(() => {
     loadData();
+    loadAvailableIndicators();
   }, []);
 
   // 当tab1的策略变化时，如果tab2没有选择，则使用tab1的选择
@@ -77,6 +74,18 @@ export default function KeyIndicatorAnalysis() {
       setRecommendations([]);
     }
   }, [selectedStrategy]);
+
+  const loadAvailableIndicators = async () => {
+    setLoadingIndicators(true);
+    try {
+      const indicators = await getAllIndicators();
+      setAvailableIndicators(indicators);
+    } catch (error) {
+      console.error('加载可用指标失败:', error);
+    } finally {
+      setLoadingIndicators(false);
+    }
+  };
 
   const loadData = async (forceRefresh: boolean = false) => {
     setLoading(true);
@@ -158,29 +167,6 @@ export default function KeyIndicatorAnalysis() {
     }
   };
 
-  const handleAddStrategy = () => {
-    if (!newStrategy.name.trim() || !newStrategy.description.trim()) {
-      return;
-    }
-
-    const strategy: Strategy = {
-      id: `strategy-${Date.now()}`,
-      name: newStrategy.name.trim(),
-      description: newStrategy.description.trim(),
-      focusAreas: newStrategy.focusAreas.split(',').map((s) => s.trim()).filter(Boolean),
-      targetOutcomes: newStrategy.targetOutcomes.split(',').map((s) => s.trim()).filter(Boolean),
-    };
-
-    addStrategy(strategy);
-    setSelectedStrategyTab2(strategy);
-    setNewStrategy({
-      name: '',
-      description: '',
-      focusAreas: '',
-      targetOutcomes: '',
-    });
-    setShowAddStrategy(false);
-  };
 
   const handleUpdateStrategy = (id: string, updates: Partial<Strategy>) => {
     updateStrategy(id, updates);
@@ -242,92 +228,86 @@ export default function KeyIndicatorAnalysis() {
     策略匹配度: rec.strategyAlignment.alignmentScore,
   }));
 
+  const getCategoryLabel = (category: string) => {
+    const labels: Record<string, string> = {
+      result: '结果指标',
+      process: '过程指标',
+      input: '投入指标',
+      efficiency: '效率指标',
+    };
+    return labels[category] || category;
+  };
+
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, string> = {
+      result: 'bg-blue-100 text-blue-800',
+      process: 'bg-green-100 text-green-800',
+      input: 'bg-yellow-100 text-yellow-800',
+      efficiency: 'bg-purple-100 text-purple-800',
+    };
+    return colors[category] || 'bg-gray-100 text-gray-800';
+  };
+
   return (
     <div className="space-y-6">
-      {/* 策略选择 */}
+      {/* 可用指标列表 */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">选择策略</h3>
-            {selectedStrategyTab1 && !selectedStrategyTab2 && (
-              <p className="text-xs text-gray-500 mt-1">默认使用Tab1的选择：{selectedStrategyTab1.name}</p>
-            )}
-          </div>
-          <button
-            onClick={() => setShowAddStrategy(!showAddStrategy)}
-            className="flex items-center space-x-2 px-3 py-1.5 text-sm text-primary-600 hover:bg-primary-50 rounded-lg border border-primary-200"
-          >
-            <Plus className="w-4 h-4" />
-            <span>添加策略</span>
-          </button>
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">可用指标列表</h3>
+          <p className="text-sm text-gray-600">
+            基于数据湖内可得数据，预训练的指标长清单，清晰定义数据计算方法和取数逻辑
+          </p>
         </div>
 
-        {showAddStrategy && (
-          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">策略名称 *</label>
-              <input
-                type="text"
-                value={newStrategy.name}
-                onChange={(e) => setNewStrategy({ ...newStrategy, name: e.target.value })}
-                placeholder="输入策略名称..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">策略描述 *</label>
-              <textarea
-                value={newStrategy.description}
-                onChange={(e) => setNewStrategy({ ...newStrategy, description: e.target.value })}
-                placeholder="输入策略描述..."
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">重点领域（用逗号分隔）</label>
-              <input
-                type="text"
-                value={newStrategy.focusAreas}
-                onChange={(e) => setNewStrategy({ ...newStrategy, focusAreas: e.target.value })}
-                placeholder="例如：零售渠道,价格策略,渠道合作"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">目标结果（用逗号分隔）</label>
-              <input
-                type="text"
-                value={newStrategy.targetOutcomes}
-                onChange={(e) => setNewStrategy({ ...newStrategy, targetOutcomes: e.target.value })}
-                placeholder="例如：零售渠道份额提升,市场覆盖扩大"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleAddStrategy}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+        {loadingIndicators ? (
+          <div className="p-12 text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            <p className="mt-4 text-sm text-gray-600">加载中...</p>
+          </div>
+        ) : availableIndicators.length === 0 ? (
+          <div className="p-12 text-center">
+            <p className="text-gray-500">暂无可用指标</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+            {availableIndicators.map((indicator) => (
+              <div
+                key={indicator.id}
+                className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
               >
-                添加
-              </button>
-              <button
-                onClick={() => {
-                  setShowAddStrategy(false);
-                  setNewStrategy({
-                    name: '',
-                    description: '',
-                    focusAreas: '',
-                    targetOutcomes: '',
-                  });
-                }}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-              >
-                取消
-              </button>
-            </div>
+                <div className="flex items-start justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-gray-900 flex-1">{indicator.name}</h4>
+                  {indicator.isCore && (
+                    <span className="px-2 py-0.5 text-xs font-medium bg-primary-100 text-primary-800 rounded-full ml-2">
+                      核心
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-600 mb-2 line-clamp-2">{indicator.description}</p>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={clsx(
+                      'px-2 py-0.5 text-xs font-medium rounded-full',
+                      getCategoryColor(indicator.category)
+                    )}
+                  >
+                    {getCategoryLabel(indicator.category)}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
+      </div>
+
+      {/* 策略选择 */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">选择策略</h3>
+          {selectedStrategyTab1 && !selectedStrategyTab2 && (
+            <p className="text-xs text-gray-500 mt-1">默认使用Tab1的选择：{selectedStrategyTab1.name}</p>
+          )}
+        </div>
 
         <div className="flex flex-wrap gap-3">
           {strategies.map((strategy) => (

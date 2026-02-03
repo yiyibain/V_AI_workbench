@@ -78,19 +78,43 @@ export default function DataInterpretation({
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0 && selection.toString().trim().length > 0) {
         const selected = selection.toString().trim();
+        // 只处理长度大于3的选中文本
+        if (selected.length < 3) {
+          return;
+        }
+        
         const range = selection.getRangeAt(0);
         
         // 确定选中文本所在的板块 - 使用最简单直接的方法
         let section: string | null = null;
         
         // 获取选中区域的共同祖先容器
-        const commonAncestor = range.commonAncestorContainer;
+        let commonAncestor: Node = range.commonAncestorContainer;
+        
+        // 如果commonAncestor是文本节点，获取其父元素
+        if (commonAncestor.nodeType === Node.TEXT_NODE) {
+          commonAncestor = commonAncestor.parentNode || commonAncestor;
+        }
         
         // 检查共同祖先是否在某个板块内
         const checkInSection = (sectionRef: React.RefObject<HTMLDivElement>): boolean => {
-          if (!sectionRef.current) return false;
+          if (!sectionRef.current) {
+            return false;
+          }
           // 检查共同祖先是否是section的子元素
-          return sectionRef.current.contains(commonAncestor as Node);
+          // 使用closest方法向上查找，或者使用contains方法
+          let node: Node | null = commonAncestor;
+          while (node && node !== document.body) {
+            if (node === sectionRef.current) {
+              return true;
+            }
+            // 检查是否是section的子元素
+            if (sectionRef.current.contains(node)) {
+              return true;
+            }
+            node = node.parentNode;
+          }
+          return false;
         };
         
         // 优先检查异常数据解读板块
@@ -105,19 +129,53 @@ export default function DataInterpretation({
           setSelectedSection(section);
           setShowChatButton(true);
         } else {
-          setSelectedText('');
-          setSelectedSection(null);
-          setShowChatButton(false);
+          // 如果不在特定section，但仍在容器内，也允许选择
+          if (containerRef.current && containerRef.current.contains(commonAncestor)) {
+            // 尝试通过向上查找来确定section
+            let node: Node | null = commonAncestor;
+            while (node && node !== document.body) {
+              if (anomalySectionRef.current && anomalySectionRef.current.contains(node)) {
+                section = 'anomaly';
+                break;
+              }
+              if (summarySectionRef.current && summarySectionRef.current.contains(node)) {
+                section = 'summary';
+                break;
+              }
+              node = node.parentNode;
+            }
+            if (section) {
+              setSelectedText(selected);
+              setSelectedSection(section);
+              setShowChatButton(true);
+            } else {
+              setSelectedText('');
+              setSelectedSection(null);
+              setShowChatButton(false);
+            }
+          } else {
+            setSelectedText('');
+            setSelectedSection(null);
+            setShowChatButton(false);
+          }
         }
       } else {
-        if (selectedText !== '') {
-          setSelectedText('');
-          setSelectedSection(null);
-          setShowChatButton(false);
-          setShowChat(false);
-        }
+        // 如果没有选中文本，延迟清除状态（避免与点击事件冲突）
+        setTimeout(() => {
+          const currentSelection = window.getSelection();
+          if (!currentSelection || currentSelection.toString().trim().length === 0) {
+            setSelectedText('');
+            setSelectedSection(null);
+            setShowChatButton(false);
+            if (showChat) {
+              // 如果对话框已打开，不清除，让用户手动关闭
+            } else {
+              setShowChat(false);
+            }
+          }
+        }, 200);
       }
-    }, 100); // 减少防抖时间到100ms，提高响应速度
+    }, 150); // 防抖时间150ms
   };
 
   // 处理点击追问按钮
@@ -145,13 +203,48 @@ export default function DataInterpretation({
     if (chatPanel) {
       return;
     }
-    handleTextSelection();
+    // 如果点击的是按钮，不处理文本选择
+    if (target.closest('button')) {
+      return;
+    }
+    // 延迟处理，确保文本选择完成
+    setTimeout(() => {
+      handleTextSelection();
+    }, 50);
   };
 
   useEffect(() => {
     const container = containerRef.current;
     if (container) {
+      // 使用selectionchange事件，更可靠地检测文本选择
+      const handleSelectionChange = () => {
+        // 检查选择是否在容器内
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const commonAncestor = range.commonAncestorContainer;
+          // 只有在容器内的选择才处理
+          if (container.contains(commonAncestor as Node)) {
+            handleTextSelection();
+          }
+        } else {
+          // 选择被清空，延迟清除状态
+          setTimeout(() => {
+            const currentSelection = window.getSelection();
+            if (!currentSelection || currentSelection.toString().trim().length === 0) {
+              if (!showChat) {
+                setSelectedText('');
+                setSelectedSection(null);
+                setShowChatButton(false);
+              }
+            }
+          }, 200);
+        }
+      };
+      
+      // 同时监听mouseup和selectionchange
       container.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('selectionchange', handleSelectionChange);
       
       // 点击外部区域时清除选择（延迟执行，避免与文本选择冲突）
       const handleClickOutside = (e: MouseEvent) => {
@@ -174,25 +267,36 @@ export default function DataInterpretation({
           return; // 对话框打开时，不自动清除，让用户手动关闭
         }
         
+        // 延迟清除，确保文本选择事件先处理
         setTimeout(() => {
           const selection = window.getSelection();
+          const selectedText = selection?.toString().trim() || '';
+          
           // 如果点击在容器外部，或者没有选中文本，则清除
-          if (container && !container.contains(e.target as Node) && (!selection || selection.toString().trim().length === 0)) {
+          if (container && !container.contains(e.target as Node)) {
+            if (selectedText.length === 0) {
+              setSelectedText('');
+              setSelectedSection(null);
+              setShowChatButton(false);
+              setShowChat(false);
+              if (selection) {
+                selection.removeAllRanges();
+              }
+            }
+          } else if (selectedText.length === 0 && selectedText.length === 0) {
+            // 在容器内但文本选择被清空
             setSelectedText('');
             setSelectedSection(null);
             setShowChatButton(false);
-            setShowChat(false);
-            if (selection) {
-              selection.removeAllRanges();
-            }
           }
-        }, 300);
+        }, 500); // 增加延迟时间，确保文本选择事件先完成
       };
       
       document.addEventListener('mousedown', handleClickOutside);
       
       return () => {
         container.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('selectionchange', handleSelectionChange);
         document.removeEventListener('mousedown', handleClickOutside);
         if (selectionTimeoutRef.current) {
           clearTimeout(selectionTimeoutRef.current);
@@ -223,6 +327,14 @@ export default function DataInterpretation({
 
   return (
     <div ref={containerRef} className="space-y-6 relative">
+      {/* 使用提示 */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+        <p className="text-sm text-blue-700 flex items-center">
+          <MessageCircle className="w-4 h-4 mr-2" />
+          <span>💡 提示：选中任意文本后，可点击"追问"按钮进行AI深度分析</span>
+        </p>
+      </div>
+
       {/* 异常数据解读 - 默认展开 */}
       <div ref={anomalySectionRef} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 relative">
         <div className="flex items-center justify-between mb-6">
@@ -233,7 +345,8 @@ export default function DataInterpretation({
           {showChatButton && selectedSection === 'anomaly' && selectedText && (
             <button
               onClick={handleAskQuestion}
-              className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors shadow-sm z-10"
+              className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors shadow-sm z-50 animate-pulse"
+              style={{ position: 'relative' }}
             >
               <MessageCircle className="w-4 h-4" />
               <span>追问</span>
@@ -291,7 +404,8 @@ export default function DataInterpretation({
           {showChatButton && selectedSection === 'summary' && selectedText && (
             <button
               onClick={handleAskQuestion}
-              className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors shadow-sm z-10"
+              className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors shadow-sm z-50 animate-pulse"
+              style={{ position: 'relative' }}
             >
               <MessageCircle className="w-4 h-4" />
               <span>追问</span>
@@ -335,13 +449,14 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
   return (
     <div
       className={clsx(
-        'border rounded-lg p-5 select-text',
+        'border rounded-lg p-5 select-text cursor-text',
         anomaly.severity === 'high'
           ? 'border-red-300 bg-red-50'
           : anomaly.severity === 'medium'
           ? 'border-orange-300 bg-orange-50'
           : 'border-yellow-300 bg-yellow-50'
       )}
+      style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
@@ -389,13 +504,14 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
 
       {/* 相关数据 */}
       {anomaly.relatedData.length > 0 && (
-        <div className="mb-4">
+        <div className="mb-4 select-text cursor-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
           <h5 className="text-sm font-semibold text-gray-700 mb-2">相关数据</h5>
           <div className="space-y-2">
             {anomaly.relatedData.map((data, index) => (
               <div
                 key={index}
-                className="flex items-start space-x-2 text-sm bg-gray-50 p-2 rounded"
+                className="flex items-start space-x-2 text-sm bg-gray-50 p-2 rounded select-text cursor-text"
+                style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
               >
                 <span className="text-primary-600 font-medium">{data.type}:</span>
                 <span className="text-gray-700">{data.source}</span>
@@ -408,13 +524,14 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
 
       {/* 可能原因（合并的原因深挖内容） */}
       {anomaly.possibleCauses && anomaly.possibleCauses.length > 0 && (
-        <div className="mb-4 border-t pt-4">
+        <div className="mb-4 border-t pt-4 select-text cursor-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
           <h5 className="text-sm font-semibold text-gray-700 mb-2">可能原因</h5>
           <div className="space-y-3">
             {anomaly.possibleCauses.map((cause, index) => (
               <div
                 key={index}
-                className="bg-blue-50 border border-blue-200 rounded-lg p-3"
+                className="bg-blue-50 border border-blue-200 rounded-lg p-3 select-text cursor-text"
+                style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
               >
                 <p className="text-sm text-gray-800 mb-2">{cause.cause}</p>
                 <div className="space-y-2">
@@ -458,7 +575,7 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
 
       {/* 风险提示（合并的风险点提炼内容） */}
       {anomaly.riskImplications && (
-        <div className="border-t pt-4">
+        <div className="border-t pt-4 select-text cursor-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
           <h5 className="text-sm font-semibold text-gray-700 mb-2">风险提示</h5>
           <p className="text-sm text-gray-700 mb-3">{anomaly.riskImplications.riskDescription}</p>
           <div>
@@ -1020,7 +1137,10 @@ function SummaryContent({
   }, [product, anomalies, macroRecommendations]);
 
   return (
-    <div className="prose prose-sm max-w-none text-gray-700 bg-blue-50 border border-blue-200 rounded-lg p-4 select-text">
+    <div 
+      className="prose prose-sm max-w-none text-gray-700 bg-blue-50 border border-blue-200 rounded-lg p-4 select-text cursor-text"
+      style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
+    >
       <div className="text-sm leading-relaxed">
         <p className="mb-3">
           <strong>整体评估：</strong>

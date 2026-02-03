@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { MarketDataPoint, DimensionConfig } from '../../types/strategy';
 import { dimensionOptions } from '../../data/strategyMockData';
-import { Filter, TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
+import { Filter, AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
 import { readExcelFile } from '../../services/excelService';
 import MekkoChart from './MekkoChart';
+import { analyzeScissorsGaps, analyzeProblemsAndStrategies } from '../../services/problemAnalysisService';
 
 export default function MarketOverview() {
   const [selectedBrand, setSelectedBrand] = useState<string>('立普妥');
@@ -70,7 +71,11 @@ export default function MarketOverview() {
         });
         
         setMarketData(result.data);
-        setAvailableDimensions(result.dimensionConfigs);
+        // 过滤掉以"_英文"结尾的维度
+        const filteredDimensions = result.dimensionConfigs.filter(
+          (dim) => !dim.label.endsWith('_英文')
+        );
+        setAvailableDimensions(filteredDimensions);
         
         // 设置默认的横纵轴
         if (result.dimensionConfigs.length > 0) {
@@ -143,6 +148,8 @@ export default function MarketOverview() {
     filtered.forEach((point) => {
       const xValue = getDimensionValue(point, selectedXAxisKey);
       if (!xValue) return;
+      // 过滤掉以"_英文"结尾的维度
+      if (xValue.endsWith('_英文')) return;
       xAxisGroups.set(xValue, (xAxisGroups.get(xValue) || 0) + (point.value || 0));
     });
 
@@ -210,31 +217,6 @@ export default function MarketOverview() {
     return result;
   }, [marketData, selectedXAxisKey, selectedYAxisKey, filters, availableDimensions]);
 
-  // 识别机会点（市场份额大的细分市场）
-  const opportunities = useMemo(() => {
-    const allSegments: Array<{
-      segment: string;
-      totalShare: number;
-      totalValue: number;
-    }> = [];
-    
-    mekkoData.forEach((xAxisGroup) => {
-      xAxisGroup.segments.forEach((segment) => {
-        // 计算该细分市场占总市场的百分比
-        const totalShare = (xAxisGroup.xAxisTotalShare * segment.share) / 100;
-        allSegments.push({
-          segment: `${xAxisGroup.xAxisValue} × ${segment.yAxisValue}`,
-          totalShare,
-          totalValue: segment.value,
-        });
-      });
-    });
-    
-    return allSegments
-      .filter((item) => item.totalShare > 5) // 市场份额大于5%
-      .sort((a, b) => b.totalShare - a.totalShare)
-      .slice(0, 5);
-  }, [mekkoData]);
 
   const handleDimensionChange = (axis: 'xAxis' | 'yAxis', dimensionKey: string) => {
     if (axis === 'xAxis') {
@@ -412,43 +394,16 @@ export default function MarketOverview() {
         )}
       </div>
 
-      {/* 机会点识别 */}
-      {opportunities.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <AlertCircle className="w-5 h-5 text-orange-500" />
-            <h3 className="text-lg font-bold text-gray-900">主要细分市场</h3>
-          </div>
-          <p className="text-sm text-gray-600 mb-4">
-            市场份额大于5%的主要细分市场：
-          </p>
-          <div className="space-y-3">
-            {opportunities.map((opp, index) => (
-              <div
-                key={index}
-                className="border border-orange-200 rounded-lg p-4 bg-orange-50"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="font-semibold text-gray-900">
-                        {opp.segment}
-                      </span>
-                      <span className="text-xs px-2 py-1 rounded-full bg-orange-200 text-orange-800">
-                        市场份额 {opp.totalShare.toFixed(2)}%
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      金额: {opp.totalValue.toLocaleString('zh-CN', { maximumFractionDigits: 0 })} 元
-                    </div>
-                  </div>
-                  <TrendingUp className="w-5 h-5 text-orange-500" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* 问题定位 */}
+      <ProblemIdentification 
+        marketData={marketData}
+        mekkoData={mekkoData}
+        selectedXAxisKey={selectedXAxisKey}
+        selectedYAxisKey={selectedYAxisKey}
+        availableDimensions={availableDimensions}
+        getDimensionValue={getDimensionValue}
+        selectedBrand={selectedBrand}
+      />
 
       {/* 提示：使用Chatbot进行维度问答 */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -456,6 +411,837 @@ export default function MarketOverview() {
           <strong>提示：</strong> 使用右下角的AI助手，可以询问"什么是有意义的看市场的维度？"或"我应该从哪个维度切入看市场？"
           AI会根据产品商业特性推荐适合的分析维度。
         </p>
+      </div>
+    </div>
+  );
+}
+
+// 问题定位组件
+interface ProblemIdentificationProps {
+  marketData: MarketDataPoint[];
+  mekkoData: Array<{
+    xAxisValue: string;
+    xAxisTotalValue: number;
+    xAxisTotalShare: number;
+    segments: Array<{
+      yAxisValue: string;
+      value: number;
+      share: number;
+    }>;
+  }>;
+  selectedXAxisKey: string;
+  selectedYAxisKey: string;
+  availableDimensions: DimensionConfig[];
+  getDimensionValue: (point: MarketDataPoint, dimensionKey: string) => string;
+  selectedBrand: string;
+}
+
+function ProblemIdentification({
+  marketData,
+  mekkoData,
+  selectedXAxisKey,
+  selectedYAxisKey,
+  availableDimensions,
+  getDimensionValue,
+  selectedBrand,
+}: ProblemIdentificationProps) {
+  // AI分析状态
+  const [aiAnalysisLoading, setAiAnalysisLoading] = useState(false);
+  const [currentStep, setCurrentStep] = useState<'gaps' | 'problems' | 'causes' | 'strategies' | null>(null);
+  
+  // 步骤1：剪刀差
+  const [aiScissorsGaps, setAiScissorsGaps] = useState<Array<{
+    title: string;
+    phenomenon: string;
+    possibleReasons: string;
+  }>>([]);
+  const [editingGaps, setEditingGaps] = useState(false);
+  const [newGapTitle, setNewGapTitle] = useState('');
+  const [newGapPhenomenon, setNewGapPhenomenon] = useState('');
+  const [newGapReasons, setNewGapReasons] = useState('');
+  
+  // 步骤2：问题列表
+  const [aiProblems, setAiProblems] = useState<string[]>([]);
+  const [editingProblems, setEditingProblems] = useState(false);
+  const [newProblem, setNewProblem] = useState('');
+  
+  // 步骤3：成因分析
+  const [aiCauses, setAiCauses] = useState<Array<{
+    problem: string;
+    environmentFactors?: string;
+    commercialFactors?: string;
+    productFactors?: string;
+    resourceFactors?: string;
+  }>>([]);
+  const [editingCauses, setEditingCauses] = useState(false);
+  
+  // 步骤4：策略建议
+  const [aiStrategies, setAiStrategies] = useState<Array<{
+    problem: string;
+    strategies: string[];
+  }>>([]);
+  const [editingStrategies, setEditingStrategies] = useState(false);
+  
+  const [showAIAnalysis, setShowAIAnalysis] = useState(false);
+
+  // 找出品牌维度
+  const brandDimension = useMemo(() => {
+    return availableDimensions.find(d => 
+      d.label.toLowerCase().includes('品牌') || 
+      d.label.toLowerCase().includes('brand')
+    );
+  }, [availableDimensions]);
+
+  // 晖致品牌列表（包括立普妥等）
+  const huiZhiBrands = useMemo(() => {
+    const brands = new Set<string>();
+    if (brandDimension) {
+      const huiZhiKeywords = ['立普妥', '络活喜', '晖致', 'hui zhi', 'huizhi', 'lipitor', 'norvasc'];
+      marketData.forEach(point => {
+        const brand = getDimensionValue(point, brandDimension.key);
+        if (brand) {
+          const brandLower = brand.toLowerCase();
+          // 检查是否包含晖致关键词，或者直接匹配selectedBrand
+          if (huiZhiKeywords.some(keyword => brand.includes(keyword) || brandLower.includes(keyword.toLowerCase())) || 
+              brand === selectedBrand) {
+            brands.add(brand);
+          }
+        }
+      });
+    }
+    return Array.from(brands);
+  }, [marketData, brandDimension, getDimensionValue, selectedBrand]);
+
+  // 主要竞品列表
+  const competitorBrands = useMemo(() => {
+    const brands = new Set<string>();
+    if (brandDimension) {
+      marketData.forEach(point => {
+        const brand = getDimensionValue(point, brandDimension.key);
+        if (brand && !huiZhiBrands.includes(brand)) {
+          brands.add(brand);
+        }
+      });
+    }
+    // 返回市场份额最大的几个竞品
+    const brandShares = Array.from(brands).map(brand => {
+      const total = marketData
+        .filter(p => getDimensionValue(p, brandDimension!.key) === brand)
+        .reduce((sum, p) => sum + (p.value || 0), 0);
+      return { brand, total };
+    }).sort((a, b) => b.total - a.total);
+    
+    return brandShares.slice(0, 3).map(b => b.brand);
+  }, [marketData, brandDimension, huiZhiBrands, getDimensionValue]);
+
+  // 1. 定位"剪刀差"：找出晖致份额明显低于竞品的区域
+  const gapAnalysis = useMemo(() => {
+    if (!brandDimension || huiZhiBrands.length === 0 || competitorBrands.length === 0) {
+      return [];
+    }
+
+    const gaps: Array<{
+      xAxisValue: string;
+      yAxisValue: string;
+      huiZhiShare: number;
+      competitorShare: number;
+      gap: number;
+      totalValue: number;
+    }> = [];
+
+    // 遍历所有X轴和Y轴组合
+    mekkoData.forEach(column => {
+      column.segments.forEach(segment => {
+        const xValue = column.xAxisValue;
+        const yValue = segment.yAxisValue;
+
+        // 计算该组合下晖致和竞品的份额
+        const huiZhiTotal = marketData
+          .filter(p => {
+            const x = getDimensionValue(p, selectedXAxisKey);
+            const y = getDimensionValue(p, selectedYAxisKey);
+            const brand = getDimensionValue(p, brandDimension.key);
+            return x === xValue && y === yValue && huiZhiBrands.includes(brand);
+          })
+          .reduce((sum, p) => sum + (p.value || 0), 0);
+
+        const competitorTotal = marketData
+          .filter(p => {
+            const x = getDimensionValue(p, selectedXAxisKey);
+            const y = getDimensionValue(p, selectedYAxisKey);
+            const brand = getDimensionValue(p, brandDimension.key);
+            return x === xValue && y === yValue && competitorBrands.includes(brand);
+          })
+          .reduce((sum, p) => sum + (p.value || 0), 0);
+
+        const total = marketData
+          .filter(p => {
+            const x = getDimensionValue(p, selectedXAxisKey);
+            const y = getDimensionValue(p, selectedYAxisKey);
+            return x === xValue && y === yValue;
+          })
+          .reduce((sum, p) => sum + (p.value || 0), 0);
+
+        if (total > 0) {
+          const huiZhiShare = (huiZhiTotal / total) * 100;
+          const competitorShare = (competitorTotal / total) * 100;
+          const gap = competitorShare - huiZhiShare;
+
+          // 只记录差距明显的情况（差距>10%且总金额较大）
+          if (gap > 10 && total > 1000) {
+            gaps.push({
+              xAxisValue: xValue,
+              yAxisValue: yValue,
+              huiZhiShare,
+              competitorShare,
+              gap,
+              totalValue: total,
+            });
+          }
+        }
+      });
+    });
+
+    return gaps.sort((a, b) => b.gap - a.gap).slice(0, 5);
+  }, [marketData, mekkoData, selectedXAxisKey, selectedYAxisKey, brandDimension, huiZhiBrands, competitorBrands, getDimensionValue]);
+
+  // 2. 生成分析论述
+  const analysisText = useMemo(() => {
+    if (gapAnalysis.length === 0) {
+      return '当前数据未发现明显的份额差距问题。';
+    }
+
+    const topGap = gapAnalysis[0];
+    const xAxisLabel = availableDimensions.find(d => d.key === selectedXAxisKey)?.label || '横轴维度';
+    const yAxisLabel = availableDimensions.find(d => d.key === selectedYAxisKey)?.label || '纵轴维度';
+    
+    // 查找主要竞品名称
+    const mainCompetitor = competitorBrands[0] || '竞品';
+    
+    // 查找是否有更细粒度的下钻维度
+    const additionalDimensions = availableDimensions.filter(d => 
+      d.key !== selectedXAxisKey && d.key !== selectedYAxisKey && d.key !== brandDimension?.key
+    );
+
+    let text = `${selectedBrand}在${xAxisLabel}为"${topGap.xAxisValue}"、${yAxisLabel}为"${topGap.yAxisValue}"的细分市场中，`;
+    text += `分子式内份额为${topGap.huiZhiShare.toFixed(1)}%，而${mainCompetitor}为${topGap.competitorShare.toFixed(1)}%，差距达${topGap.gap.toFixed(1)}个百分点。`;
+
+    if (additionalDimensions.length > 0) {
+      const additionalDim = additionalDimensions[0];
+      text += `进一步拆分来看，主要问题集中在${additionalDim.label}维度。`;
+    }
+
+    return text;
+  }, [gapAnalysis, selectedBrand, selectedXAxisKey, selectedYAxisKey, availableDimensions, competitorBrands, brandDimension]);
+
+  // 3. 生成优化建议
+  const optimizationSuggestions = useMemo(() => {
+    if (gapAnalysis.length === 0) {
+      return [];
+    }
+
+    const suggestions: string[] = [];
+    const topGap = gapAnalysis[0];
+    const xAxisLabel = availableDimensions.find(d => d.key === selectedXAxisKey)?.label || '横轴维度';
+    const yAxisLabel = availableDimensions.find(d => d.key === selectedYAxisKey)?.label || '纵轴维度';
+
+    suggestions.push(`提升${xAxisLabel}为"${topGap.xAxisValue}"、${yAxisLabel}为"${topGap.yAxisValue}"细分市场中${selectedBrand}的分销水平和市场覆盖`);
+    
+    if (gapAnalysis.length > 1) {
+      const secondGap = gapAnalysis[1];
+      suggestions.push(`加强${xAxisLabel}为"${secondGap.xAxisValue}"、${yAxisLabel}为"${secondGap.yAxisValue}"细分市场的渠道建设和推广投入`);
+    }
+
+    return suggestions;
+  }, [gapAnalysis, selectedBrand, selectedXAxisKey, selectedYAxisKey, availableDimensions]);
+
+  // 触发AI分析 - 只分析第一步
+  const handleAIAnalysis = async () => {
+    if (mekkoData.length === 0 || marketData.length === 0) {
+      alert('请先确保有数据可分析');
+      return;
+    }
+
+    setAiAnalysisLoading(true);
+    setShowAIAnalysis(true);
+    setCurrentStep('gaps');
+
+    try {
+      // 第一步：分析剪刀差（限制5条）
+      const gapsResult = await analyzeScissorsGaps(
+        marketData,
+        mekkoData,
+        selectedXAxisKey,
+        selectedYAxisKey,
+        availableDimensions,
+        selectedBrand,
+        5 // 限制最多5条
+      );
+      
+      setAiScissorsGaps(gapsResult.scissorsGaps.slice(0, 5));
+      setEditingGaps(true);
+    } catch (error) {
+      console.error('AI分析失败:', error);
+      alert('AI分析失败，请稍后重试');
+    } finally {
+      setAiAnalysisLoading(false);
+    }
+  };
+
+  // 确认步骤1（剪刀差）并进入步骤2
+  const handleConfirmGaps = async () => {
+    if (aiScissorsGaps.length === 0) {
+      alert('请至少保留一条剪刀差分析');
+      return;
+    }
+    
+    setEditingGaps(false);
+    setCurrentStep('problems');
+    setAiAnalysisLoading(true);
+
+    try {
+      // 第二步：分析问题列表（基于确认的剪刀差）
+      const problemsResult = await analyzeProblemsAndStrategies(
+        aiScissorsGaps,
+        selectedBrand,
+        undefined,
+        5 // 限制最多5条问题
+      );
+      
+      setAiProblems(problemsResult.problems.slice(0, 5));
+      setEditingProblems(true);
+    } catch (error) {
+      console.error('问题分析失败:', error);
+      alert('问题分析失败，请稍后重试');
+    } finally {
+      setAiAnalysisLoading(false);
+    }
+  };
+
+  // 确认步骤2（问题列表）并进入步骤3
+  const handleConfirmProblems = async () => {
+    if (aiProblems.length === 0) {
+      alert('请至少保留一条问题');
+      return;
+    }
+    
+    setEditingProblems(false);
+    setCurrentStep('causes');
+    setAiAnalysisLoading(true);
+
+    try {
+      // 第三步：分析成因和策略（基于确认的问题列表）
+      const problemsResult = await analyzeProblemsAndStrategies(
+        aiScissorsGaps,
+        selectedBrand,
+        undefined,
+        5,
+        aiProblems // 传入确认的问题列表
+      );
+      
+      setAiCauses(problemsResult.causes.slice(0, 5));
+      setAiStrategies(problemsResult.strategies.slice(0, 5));
+      setEditingCauses(true);
+    } catch (error) {
+      console.error('成因分析失败:', error);
+      alert('成因分析失败，请稍后重试');
+    } finally {
+      setAiAnalysisLoading(false);
+    }
+  };
+
+  // 确认步骤3（成因和策略）
+  const handleConfirmCauses = () => {
+    setEditingCauses(false);
+    setEditingStrategies(false);
+    setCurrentStep('strategies');
+  };
+
+  // 删除剪刀差条目
+  const handleDeleteGap = (index: number) => {
+    setAiScissorsGaps(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // 添加剪刀差条目
+  const handleAddGap = () => {
+    if (!newGapTitle.trim() || !newGapPhenomenon.trim() || !newGapReasons.trim()) {
+      alert('请填写完整的剪刀差信息');
+      return;
+    }
+    if (aiScissorsGaps.length >= 5) {
+      alert('最多只能添加5条剪刀差');
+      return;
+    }
+    setAiScissorsGaps(prev => [...prev, {
+      title: newGapTitle,
+      phenomenon: newGapPhenomenon,
+      possibleReasons: newGapReasons,
+    }]);
+    setNewGapTitle('');
+    setNewGapPhenomenon('');
+    setNewGapReasons('');
+  };
+
+  // 删除问题条目
+  const handleDeleteProblem = (index: number) => {
+    setAiProblems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // 添加问题条目
+  const handleAddProblem = () => {
+    if (!newProblem.trim()) {
+      alert('请填写问题内容');
+      return;
+    }
+    if (aiProblems.length >= 5) {
+      alert('最多只能添加5条问题');
+      return;
+    }
+    setAiProblems(prev => [...prev, newProblem]);
+    setNewProblem('');
+  };
+
+  // 删除成因条目
+  const handleDeleteCause = (index: number) => {
+    setAiCauses(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // 删除策略条目
+  const handleDeleteStrategy = (index: number) => {
+    setAiStrategies(prev => prev.filter((_, i) => i !== index));
+  };
+
+  if (gapAnalysis.length === 0 && !brandDimension && !showAIAnalysis) {
+    return null;
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-2">
+          <AlertCircle className="w-6 h-6 text-red-500" />
+          <h3 className="text-xl font-bold text-gray-900">问题定位</h3>
+        </div>
+        <button
+          onClick={handleAIAnalysis}
+          disabled={aiAnalysisLoading || mekkoData.length === 0}
+          className={clsx(
+            'flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+            aiAnalysisLoading || mekkoData.length === 0
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-primary-600 text-white hover:bg-primary-700'
+          )}
+        >
+          {aiAnalysisLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>AI分析中...</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              <span>AI智能分析</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* AI分析结果 */}
+      {showAIAnalysis && (
+        <div className="mb-6 border-t pt-6">
+          <div className="flex items-center space-x-2 mb-4">
+            <Sparkles className="w-5 h-5 text-primary-600" />
+            <h4 className="text-lg font-semibold text-gray-900">AI智能分析结果</h4>
+          </div>
+
+          {/* 步骤1：剪刀差分析 */}
+          {currentStep && currentStep !== null && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h5 className="text-md font-semibold text-gray-800">1. 剪刀差识别 {aiScissorsGaps.length > 0 && `(${aiScissorsGaps.length}/5)`}</h5>
+                {editingGaps && (
+                  <span className="text-xs text-gray-500">编辑模式：可删除或添加条目</span>
+                )}
+              </div>
+              
+              {aiScissorsGaps.length > 0 && (
+                <div className="space-y-3 mb-4">
+                  {aiScissorsGaps.map((gap, index) => (
+                    <div
+                      key={index}
+                      className="border border-primary-200 rounded-lg p-4 bg-primary-50 relative"
+                    >
+                      {editingGaps && (
+                        <button
+                          onClick={() => handleDeleteGap(index)}
+                          className="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                          title="删除"
+                        >
+                          <span className="text-lg">×</span>
+                        </button>
+                      )}
+                      <div className="font-semibold text-gray-900 mb-2">{gap.title}</div>
+                      <div className="text-sm text-gray-700 mb-2">
+                        <span className="font-medium">现象：</span>
+                        {gap.phenomenon}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        <span className="font-medium">可能原因：</span>
+                        {gap.possibleReasons}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {editingGaps && (
+                <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50 mb-4">
+                  <h6 className="text-sm font-medium text-gray-700 mb-3">添加新剪刀差</h6>
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      value={newGapTitle}
+                      onChange={(e) => setNewGapTitle(e.target.value)}
+                      placeholder="标题（例如：零售渠道分子式内份额落后）"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                    <textarea
+                      value={newGapPhenomenon}
+                      onChange={(e) => setNewGapPhenomenon(e.target.value)}
+                      placeholder="现象描述"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                      rows={2}
+                    />
+                    <textarea
+                      value={newGapReasons}
+                      onChange={(e) => setNewGapReasons(e.target.value)}
+                      placeholder="可能原因"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                      rows={2}
+                    />
+                    <button
+                      onClick={handleAddGap}
+                      disabled={aiScissorsGaps.length >= 5}
+                      className={clsx(
+                        'px-4 py-2 rounded-lg text-sm font-medium',
+                        aiScissorsGaps.length >= 5
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-primary-600 text-white hover:bg-primary-700'
+                      )}
+                    >
+                      添加
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {editingGaps && (
+                <button
+                  onClick={handleConfirmGaps}
+                  disabled={aiScissorsGaps.length === 0 || aiAnalysisLoading}
+                  className={clsx(
+                    'w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                    aiScissorsGaps.length === 0 || aiAnalysisLoading
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  )}
+                >
+                  {aiAnalysisLoading ? '分析中...' : '确认并进入下一步'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 步骤2：问题列表 */}
+          {(currentStep === 'problems' || currentStep === 'causes' || currentStep === 'strategies') && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h5 className="text-md font-semibold text-gray-800">2. 潜在问题列表 {aiProblems.length > 0 && `(${aiProblems.length}/5)`}</h5>
+                {editingProblems && (
+                  <span className="text-xs text-gray-500">编辑模式：可删除或添加条目</span>
+                )}
+              </div>
+              
+              {aiProblems.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {aiProblems.map((problem, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start space-x-3 bg-orange-50 border border-orange-200 rounded-lg p-3 relative"
+                    >
+                      {editingProblems && (
+                        <button
+                          onClick={() => handleDeleteProblem(index)}
+                          className="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                          title="删除"
+                        >
+                          <span className="text-lg">×</span>
+                        </button>
+                      )}
+                      <span className="text-orange-600 font-bold mt-0.5">{index + 1}.</span>
+                      <span className="text-gray-700 flex-1">{problem}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {editingProblems && (
+                <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50 mb-4">
+                  <h6 className="text-sm font-medium text-gray-700 mb-3">添加新问题</h6>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={newProblem}
+                      onChange={(e) => setNewProblem(e.target.value)}
+                      placeholder="输入问题描述"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleAddProblem();
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={handleAddProblem}
+                      disabled={aiProblems.length >= 5}
+                      className={clsx(
+                        'px-4 py-2 rounded-lg text-sm font-medium',
+                        aiProblems.length >= 5
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-primary-600 text-white hover:bg-primary-700'
+                      )}
+                    >
+                      添加
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {editingProblems && (
+                <button
+                  onClick={handleConfirmProblems}
+                  disabled={aiProblems.length === 0 || aiAnalysisLoading}
+                  className={clsx(
+                    'w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                    aiProblems.length === 0 || aiAnalysisLoading
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  )}
+                >
+                  {aiAnalysisLoading ? '分析中...' : '确认并进入下一步'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 步骤3：成因分析 */}
+          {(currentStep === 'causes' || currentStep === 'strategies') && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h5 className="text-md font-semibold text-gray-800">3. 问题成因分析（四大因素） {aiCauses.length > 0 && `(${aiCauses.length}/5)`}</h5>
+                {editingCauses && (
+                  <span className="text-xs text-gray-500">编辑模式：可删除条目</span>
+                )}
+              </div>
+              
+              {aiCauses.length > 0 && (
+                <div className="space-y-4 mb-4">
+                  {aiCauses.map((cause, index) => (
+                    <div
+                      key={index}
+                      className="border border-blue-200 rounded-lg p-4 bg-blue-50 relative"
+                    >
+                      {editingCauses && (
+                        <button
+                          onClick={() => handleDeleteCause(index)}
+                          className="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                          title="删除"
+                        >
+                          <span className="text-lg">×</span>
+                        </button>
+                      )}
+                      <div className="font-semibold text-gray-900 mb-3">{cause.problem}</div>
+                      <div className="space-y-2 text-sm">
+                        {cause.environmentFactors && (
+                          <div>
+                            <span className="font-medium text-blue-700">环境因素：</span>
+                            <span className="text-gray-700 ml-2">{cause.environmentFactors}</span>
+                          </div>
+                        )}
+                        {cause.commercialFactors && (
+                          <div>
+                            <span className="font-medium text-blue-700">商业推广因素：</span>
+                            <span className="text-gray-700 ml-2">{cause.commercialFactors}</span>
+                          </div>
+                        )}
+                        {cause.productFactors && (
+                          <div>
+                            <span className="font-medium text-blue-700">产品因素：</span>
+                            <span className="text-gray-700 ml-2">{cause.productFactors}</span>
+                          </div>
+                        )}
+                        {cause.resourceFactors && (
+                          <div>
+                            <span className="font-medium text-blue-700">资源分配因素：</span>
+                            <span className="text-gray-700 ml-2">{cause.resourceFactors}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {editingCauses && (
+                <button
+                  onClick={handleConfirmCauses}
+                  disabled={aiCauses.length === 0}
+                  className={clsx(
+                    'w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                    aiCauses.length === 0
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  )}
+                >
+                  确认完成
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 步骤4：策略建议 */}
+          {currentStep === 'strategies' && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h5 className="text-md font-semibold text-gray-800">4. 具体可执行策略 {aiStrategies.length > 0 && `(${aiStrategies.length}/5)`}</h5>
+                {editingStrategies && (
+                  <span className="text-xs text-gray-500">编辑模式：可删除条目</span>
+                )}
+              </div>
+              
+              {aiStrategies.length > 0 && (
+                <div className="space-y-4">
+                  {aiStrategies.map((strategy, index) => (
+                    <div
+                      key={index}
+                      className="border border-green-200 rounded-lg p-4 bg-green-50 relative"
+                    >
+                      {editingStrategies && (
+                        <button
+                          onClick={() => handleDeleteStrategy(index)}
+                          className="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                          title="删除"
+                        >
+                          <span className="text-lg">×</span>
+                        </button>
+                      )}
+                      <div className="font-semibold text-gray-900 mb-3">{strategy.problem}</div>
+                      <div className="space-y-2">
+                        {strategy.strategies.map((s, sIndex) => (
+                          <div
+                            key={sIndex}
+                            className="flex items-start space-x-2 text-sm text-gray-700"
+                          >
+                            <span className="text-green-600 font-bold mt-0.5">{sIndex + 1}.</span>
+                            <span className="flex-1">{s}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* 1. 剪刀差定位（基础分析） */}
+      <div className="mb-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-3">
+          1. 值得关注的"剪刀差"定位（基础分析）
+        </h4>
+        {gapAnalysis.length > 0 ? (
+          <div className="space-y-3">
+            {gapAnalysis.map((gap, index) => {
+              const xAxisLabel = availableDimensions.find(d => d.key === selectedXAxisKey)?.label || '横轴维度';
+              const yAxisLabel = availableDimensions.find(d => d.key === selectedYAxisKey)?.label || '纵轴维度';
+              
+              return (
+                <div
+                  key={index}
+                  className="border border-red-200 rounded-lg p-4 bg-red-50"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <div className="font-semibold text-gray-900 mb-2">
+                        {xAxisLabel}: {gap.xAxisValue} × {yAxisLabel}: {gap.yAxisValue}
+                      </div>
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-600">晖致份额:</span>
+                          <span className="ml-2 font-semibold text-red-600">{gap.huiZhiShare.toFixed(1)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">竞品份额:</span>
+                          <span className="ml-2 font-semibold text-gray-900">{gap.competitorShare.toFixed(1)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">差距:</span>
+                          <span className="ml-2 font-semibold text-red-700">{gap.gap.toFixed(1)}个百分点</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        总金额: {gap.totalValue.toLocaleString('zh-CN', { maximumFractionDigits: 0 })} 元
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-gray-500 text-sm bg-gray-50 border border-gray-200 rounded-lg p-4">
+            当前数据未发现明显的份额差距问题。
+          </div>
+        )}
+      </div>
+
+      {/* 2. 分析论述 */}
+      <div className="mb-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-3">
+          2. 进一步分析与下钻
+        </h4>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+            {analysisText}
+          </p>
+        </div>
+      </div>
+
+      {/* 3. 优化建议 */}
+      <div>
+        <h4 className="text-lg font-semibold text-gray-900 mb-3">
+          3. 潜在可优化项
+        </h4>
+        {optimizationSuggestions.length > 0 ? (
+          <div className="space-y-2">
+            {optimizationSuggestions.map((suggestion, index) => (
+              <div
+                key={index}
+                className="flex items-start space-x-3 bg-green-50 border border-green-200 rounded-lg p-3"
+              >
+                <span className="text-green-600 font-bold mt-0.5">{index + 1}.</span>
+                <span className="text-gray-700 flex-1">{suggestion}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-gray-500 text-sm bg-gray-50 border border-gray-200 rounded-lg p-4">
+            暂无明确的优化建议。
+          </div>
+        )}
       </div>
     </div>
   );

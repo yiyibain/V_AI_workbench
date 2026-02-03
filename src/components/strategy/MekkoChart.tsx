@@ -397,10 +397,52 @@ export default function MekkoChart({ data }: MekkoChartProps) {
               height: number;
             }>;
 
+            // 检查段内标签是否重叠（垂直方向，最小间距20px）
+            const segmentLabelsWithOverlap = segments.map((seg, segIndex) => {
+              if (seg.height <= 20 || seg.width <= 50 || seg.share < 1) {
+                return { seg, showLabel: false };
+              }
+              
+              const segCenterY = seg.y + seg.height / 2;
+              // 检查与相邻段的标签是否太近
+              let hasOverlap = false;
+              for (let i = 0; i < segments.length; i++) {
+                if (i === segIndex) continue;
+                const otherSeg = segments[i];
+                if (otherSeg.height <= 20 || otherSeg.width <= 50 || otherSeg.share < 1) continue;
+                
+                const otherCenterY = otherSeg.y + otherSeg.height / 2;
+                const verticalDistance = Math.abs(segCenterY - otherCenterY);
+                // 如果垂直距离小于20px，认为重叠
+                if (verticalDistance < 20) {
+                  hasOverlap = true;
+                  break;
+                }
+              }
+              
+              return { seg, showLabel: !hasOverlap };
+            });
+
+            // 检查柱子顶部标签是否重叠（水平方向，最小间距60px）
+            const showTopLabel = (() => {
+              const currentCenterX = margin.left + column.x + column.width / 2;
+              for (let i = 0; i < columns.length; i++) {
+                if (i === colIndex) continue;
+                const otherColumn = columns[i];
+                const otherCenterX = margin.left + otherColumn.x + otherColumn.width / 2;
+                const horizontalDistance = Math.abs(currentCenterX - otherCenterX);
+                // 如果水平距离小于60px，认为重叠
+                if (horizontalDistance < 60) {
+                  return false;
+                }
+              }
+              return true;
+            })();
+
             return (
               <g key={colIndex}>
                 {/* 绘制每个段 */}
-                {segments.map((seg, segIndex) => {
+                {segmentLabelsWithOverlap.map(({ seg, showLabel }, segIndex) => {
                   // 如果占比小于1%，使用灰色
                   const isSmallSegment = seg.share < 1;
                   const color = isSmallSegment ? '#94a3b8' : (colorMap.get(seg.yAxisValue) || '#94a3b8');
@@ -416,8 +458,8 @@ export default function MekkoChart({ data }: MekkoChartProps) {
                         strokeWidth={1}
                         className="hover:opacity-80"
                       />
-                      {/* 如果段足够大，显示标签 */}
-                      {seg.height > 20 && seg.width > 50 && !isSmallSegment && (
+                      {/* 如果段足够大且不重叠，显示标签 */}
+                      {showLabel && (
                         <text
                           x={seg.x + seg.width / 2}
                           y={seg.y + seg.height / 2}
@@ -446,17 +488,19 @@ export default function MekkoChart({ data }: MekkoChartProps) {
                   {column.xAxisValue}
                 </text>
                 
-                {/* 在柱子顶部显示总金额 */}
-                <text
-                  x={margin.left + column.x + column.width / 2}
-                  y={margin.top - 10}
-                  textAnchor="middle"
-                  fontSize="11"
-                  fill="#374151"
-                  fontWeight="bold"
-                >
-                  {column.xAxisTotalValue.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
-                </text>
+                {/* 在柱子顶部显示总金额（如果不重叠） */}
+                {showTopLabel && (
+                  <text
+                    x={margin.left + column.x + column.width / 2}
+                    y={margin.top - 10}
+                    textAnchor="middle"
+                    fontSize="11"
+                    fill="#374151"
+                    fontWeight="bold"
+                  >
+                    {column.xAxisTotalValue.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+                  </text>
+                )}
               </g>
             );
           })}
@@ -529,29 +573,6 @@ export default function MekkoChart({ data }: MekkoChartProps) {
         )}
       </div>
 
-      {/* 图例 */}
-      <div className="mt-4 flex flex-wrap gap-3 justify-center items-center">
-        {allYValues.map((yValue) => {
-          const color = colorMap.get(yValue) || '#94a3b8';
-          return (
-            <div key={yValue} className="flex items-center space-x-2">
-              <div
-                className="w-4 h-4 rounded"
-                style={{ backgroundColor: color }}
-              />
-              <span className="text-sm text-gray-700">{yValue}</span>
-            </div>
-          );
-        })}
-        {/* 添加"其他"图例项，表示小于1%的段 */}
-        <div className="flex items-center space-x-2">
-          <div
-            className="w-4 h-4 rounded"
-            style={{ backgroundColor: '#94a3b8' }}
-          />
-          <span className="text-sm text-gray-500">其他 (&lt;1%)</span>
-        </div>
-      </div>
     </div>
   );
 }
