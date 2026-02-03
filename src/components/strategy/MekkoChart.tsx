@@ -372,7 +372,6 @@ export default function MekkoChart({ data }: MekkoChartProps) {
               
               // 转换为画布坐标（从底部开始）
               // Y轴从底部（0%）到顶部（100%），所以需要从底部往上计算
-              const yStartPercent = (visibleYStart - displayRange.yMin) / (displayRange.yMax - displayRange.yMin);
               const yEndPercent = (visibleYEnd - displayRange.yMin) / (displayRange.yMax - displayRange.yMin);
               const height = (visibleHeightPercent / (displayRange.yMax - displayRange.yMin)) * baseInnerHeight;
               // Y坐标：从底部往上，所以用1减去百分比

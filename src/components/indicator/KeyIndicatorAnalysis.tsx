@@ -50,7 +50,6 @@ export default function KeyIndicatorAnalysis() {
     updateStrategy,
     deleteStrategy,
     selectedStrategyTab1,
-    setSelectedStrategyTab1,
     setCachedEffectAnalysis,
     getCachedRecommendations,
     setCachedRecommendations,

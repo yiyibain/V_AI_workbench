@@ -10,7 +10,6 @@ import { mockProvincePerformance } from '../data/mockData';
 import {
   AlertTriangle,
   MapPin,
-  Building2,
   MessageCircle,
   ExternalLink,
   Database,
