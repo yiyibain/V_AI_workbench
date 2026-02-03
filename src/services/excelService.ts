@@ -88,10 +88,6 @@ export async function readExcelFile(filePath: string): Promise<{
         // 特殊字段处理
         if (headerLower === 'id' || headerLower === '序号' || headerLower === '编号') {
           dataPoint.id = String(value);
-        } else if (headerLower.includes('金额') || headerLower.includes('amount') || headerLower.includes('value')) {
-          // 金额作为 value（用于计算市场份额）
-          const numValue = typeof value === 'number' ? value : parseFloat(String(value).replace(/,/g, '')) || 0;
-          dataPoint.value = numValue;
         } else if (headerLower.includes('province') || headerLower.includes('省份') || headerLower.includes('地区') || headerLower.includes('区域')) {
           dataPoint.province = String(value);
         } else {
@@ -103,16 +99,29 @@ export async function readExcelFile(filePath: string): Promise<{
         }
       });
       
-      // 确保有value字段（使用金额）
-      if (!dataPoint.value || dataPoint.value === 0) {
-        // 如果没有金额字段，尝试从其他数值字段获取
-        const amountIndex = cleanedHeaders.findIndex(h => 
-          h?.toLowerCase().includes('金额') || h?.toLowerCase().includes('amount')
-        );
-        if (amountIndex >= 0 && row[amountIndex]) {
-          dataPoint.value = typeof row[amountIndex] === 'number' 
+      // 优先使用pdot列作为value（用于计算市场份额）
+      const pdotIndex = cleanedHeaders.findIndex(h => 
+        h?.toLowerCase().trim() === 'pdot'
+      );
+      
+      if (pdotIndex >= 0 && row[pdotIndex] !== undefined && row[pdotIndex] !== null && row[pdotIndex] !== '') {
+        // 使用pdot列的值
+        const pdotValue = typeof row[pdotIndex] === 'number' 
+          ? row[pdotIndex] 
+          : parseFloat(String(row[pdotIndex]).replace(/,/g, '')) || 0;
+        dataPoint.value = pdotValue;
+      } else {
+        // 如果没有pdot列，回退到金额、amount或value列
+        const amountIndex = cleanedHeaders.findIndex(h => {
+          const hLower = h?.toLowerCase() || '';
+          return hLower.includes('金额') || hLower.includes('amount') || hLower.includes('value');
+        });
+        
+        if (amountIndex >= 0 && row[amountIndex] !== undefined && row[amountIndex] !== null && row[amountIndex] !== '') {
+          const numValue = typeof row[amountIndex] === 'number' 
             ? row[amountIndex] 
             : parseFloat(String(row[amountIndex]).replace(/,/g, '')) || 0;
+          dataPoint.value = numValue;
         } else {
           dataPoint.value = 0;
         }
