@@ -46,7 +46,7 @@ export default function InlineAIChat({
       const initialMessage = {
         id: Date.now().toString(),
         role: 'user' as const,
-        content: `关于这段内容："${selectedText}"，请帮我更深入地分析原因，或者如果AI的判断有误，请纠正。`,
+        content: `关于这段内容："${selectedText}"，请帮我更深入地分析原因。`,
         timestamp: new Date(),
       };
       setChatMessages([initialMessage]);
@@ -145,10 +145,22 @@ export default function InlineAIChat({
 
   if (!selectedText || !position) return null;
 
+  // 阻止对话框内的事件冒泡
+  const handlePanelClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  const handlePanelMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <div
       ref={chatRef}
       className="fixed z-50 w-96 bg-white border border-gray-200 rounded-lg shadow-xl flex flex-col max-h-[500px]"
+      data-ai-chat-panel="true"
+      onClick={handlePanelClick}
+      onMouseDown={handlePanelMouseDown}
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,

@@ -77,6 +77,12 @@ export const mockOpportunities: Opportunity[] = [
 // 预置原因维度
 export const defaultReasonDimensions: ReasonDimension[] = [
   {
+    id: 'rd5',
+    name: '环境因素',
+    category: 'other',
+    description: '医院准入、集采影响、政策变化等',
+  },
+  {
     id: 'rd1',
     name: '产品因素',
     category: 'product',
@@ -84,7 +90,7 @@ export const defaultReasonDimensions: ReasonDimension[] = [
   },
   {
     id: 'rd2',
-    name: '商业模式因素',
+    name: '商业推广因素',
     category: 'businessModel',
     description: '渠道策略、定价策略、推广模式等',
   },
@@ -93,18 +99,6 @@ export const defaultReasonDimensions: ReasonDimension[] = [
     name: '资源分配因素',
     category: 'resource',
     description: '人力投入、市场投入、资源配置等',
-  },
-  {
-    id: 'rd4',
-    name: '组织因素',
-    category: 'organization',
-    description: '团队能力、组织结构、激励机制等',
-  },
-  {
-    id: 'rd5',
-    name: '市场准入因素',
-    category: 'other',
-    description: '医院准入、集采影响、政策变化等',
   },
 ];
 

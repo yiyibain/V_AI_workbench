@@ -7,14 +7,12 @@ import {
 } from '../../services/indicatorService';
 import { useIndicator } from '../../contexts/IndicatorContext';
 import IndicatorAdjustmentDialog from './IndicatorAdjustmentDialog';
-import { Search, ChevronDown, ChevronUp, Info, RefreshCw } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Info, RefreshCw, Plus, Edit2, Trash2, X } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export default function AvailableIndicators() {
   const [allIndicators, setAllIndicators] = useState<Indicator[]>([]);
   const [potentialIndicators, setPotentialIndicators] = useState<Indicator[]>([]);
-  const [strategies, setStrategies] = useState<Strategy[]>([]);
-  const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -22,11 +20,28 @@ export default function AvailableIndicators() {
   const [expandedIndicators, setExpandedIndicators] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'all' | 'potential'>('all'); // 查看全部指标还是潜在指标
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
+  const [showAddStrategy, setShowAddStrategy] = useState(false);
+  const [editingStrategy, setEditingStrategy] = useState<Strategy | null>(null);
+  const [newStrategy, setNewStrategy] = useState({
+    name: '',
+    description: '',
+    focusAreas: '',
+    targetOutcomes: '',
+  });
 
   const {
+    strategies,
+    setStrategies,
+    addStrategy,
+    updateStrategy,
+    deleteStrategy,
+    selectedStrategyTab1,
+    setSelectedStrategyTab1,
     getCachedPotentialIndicators,
     setCachedPotentialIndicators,
   } = useIndicator();
+
+  const selectedStrategy = selectedStrategyTab1;
 
   useEffect(() => {
     loadData();
@@ -48,7 +63,10 @@ export default function AvailableIndicators() {
         getAllStrategies(),
       ]);
       setAllIndicators(indicators);
-      setStrategies(strategiesData);
+      // 如果Context中的策略列表为空，则初始化
+      if (strategies.length === 0) {
+        setStrategies(strategiesData);
+      }
     } catch (error) {
       console.error('加载数据失败:', error);
     } finally {
@@ -90,6 +108,48 @@ export default function AvailableIndicators() {
       setPotentialIndicators(adjustedIndicators);
       setCachedPotentialIndicators(selectedStrategy.id, adjustedIndicators);
     }
+  };
+
+  const handleAddStrategy = () => {
+    if (!newStrategy.name.trim() || !newStrategy.description.trim()) {
+      return;
+    }
+
+    const strategy: Strategy = {
+      id: `strategy-${Date.now()}`,
+      name: newStrategy.name.trim(),
+      description: newStrategy.description.trim(),
+      focusAreas: newStrategy.focusAreas.split(',').map((s) => s.trim()).filter(Boolean),
+      targetOutcomes: newStrategy.targetOutcomes.split(',').map((s) => s.trim()).filter(Boolean),
+    };
+
+    addStrategy(strategy);
+    setSelectedStrategyTab1(strategy);
+    setNewStrategy({
+      name: '',
+      description: '',
+      focusAreas: '',
+      targetOutcomes: '',
+    });
+    setShowAddStrategy(false);
+  };
+
+  const handleUpdateStrategy = (id: string, updates: Partial<Strategy>) => {
+    updateStrategy(id, updates);
+    if (selectedStrategy?.id === id) {
+      setSelectedStrategyTab1({ ...selectedStrategy, ...updates } as Strategy);
+    }
+    setEditingStrategy(null);
+  };
+
+  const handleDeleteStrategy = (id: string) => {
+    if (window.confirm('确定要删除这个策略吗？')) {
+      deleteStrategy(id);
+    }
+  };
+
+  const handleStartEdit = (strategy: Strategy) => {
+    setEditingStrategy({ ...strategy });
   };
 
   const toggleIndicator = (indicatorId: string) => {
@@ -157,11 +217,88 @@ export default function AvailableIndicators() {
     <div className="space-y-6">
       {/* 策略选择 */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">选择策略</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">选择策略</h3>
+          <button
+            onClick={() => setShowAddStrategy(!showAddStrategy)}
+            className="flex items-center space-x-2 px-3 py-1.5 text-sm text-primary-600 hover:bg-primary-50 rounded-lg border border-primary-200"
+          >
+            <Plus className="w-4 h-4" />
+            <span>添加策略</span>
+          </button>
+        </div>
+
+        {showAddStrategy && (
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">策略名称 *</label>
+              <input
+                type="text"
+                value={newStrategy.name}
+                onChange={(e) => setNewStrategy({ ...newStrategy, name: e.target.value })}
+                placeholder="输入策略名称..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">策略描述 *</label>
+              <textarea
+                value={newStrategy.description}
+                onChange={(e) => setNewStrategy({ ...newStrategy, description: e.target.value })}
+                placeholder="输入策略描述..."
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">重点领域（用逗号分隔）</label>
+              <input
+                type="text"
+                value={newStrategy.focusAreas}
+                onChange={(e) => setNewStrategy({ ...newStrategy, focusAreas: e.target.value })}
+                placeholder="例如：零售渠道,价格策略,渠道合作"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">目标结果（用逗号分隔）</label>
+              <input
+                type="text"
+                value={newStrategy.targetOutcomes}
+                onChange={(e) => setNewStrategy({ ...newStrategy, targetOutcomes: e.target.value })}
+                placeholder="例如：零售渠道份额提升,市场覆盖扩大"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleAddStrategy}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              >
+                添加
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddStrategy(false);
+                  setNewStrategy({
+                    name: '',
+                    description: '',
+                    focusAreas: '',
+                    targetOutcomes: '',
+                  });
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-3">
           <button
             onClick={() => {
-              setSelectedStrategy(null);
+              setSelectedStrategyTab1(null);
               setViewMode('all');
             }}
             className={clsx(
@@ -174,21 +311,44 @@ export default function AvailableIndicators() {
             查看全部指标
           </button>
           {strategies.map((strategy) => (
-            <button
-              key={strategy.id}
-              onClick={() => {
-                setSelectedStrategy(strategy);
-                setViewMode('potential');
-              }}
-              className={clsx(
-                'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                selectedStrategy?.id === strategy.id
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              )}
-            >
-              {strategy.name}
-            </button>
+            <div key={strategy.id} className="relative group">
+              <button
+                onClick={() => {
+                  setSelectedStrategyTab1(strategy);
+                  setViewMode('potential');
+                }}
+                className={clsx(
+                  'px-4 py-2 rounded-lg text-sm font-medium transition-colors pr-8',
+                  selectedStrategy?.id === strategy.id
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                )}
+              >
+                {strategy.name}
+              </button>
+              <div className="absolute top-0 right-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStartEdit(strategy);
+                  }}
+                  className="p-1 text-white hover:bg-primary-700 rounded"
+                  title="编辑"
+                >
+                  <Edit2 className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteStrategy(strategy.id);
+                  }}
+                  className="p-1 text-white hover:bg-primary-700 rounded"
+                  title="删除"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
           ))}
         </div>
         {selectedStrategy && (
@@ -415,6 +575,79 @@ export default function AvailableIndicators() {
           onApply={handleApplyAdjustment}
           context={{ strategyId: selectedStrategy.id }}
         />
+      )}
+
+      {/* 编辑策略对话框 */}
+      {editingStrategy && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">编辑策略</h3>
+              <button
+                onClick={() => setEditingStrategy(null)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">策略名称 *</label>
+                <input
+                  type="text"
+                  value={editingStrategy.name}
+                  onChange={(e) => setEditingStrategy({ ...editingStrategy, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">策略描述 *</label>
+                <textarea
+                  value={editingStrategy.description}
+                  onChange={(e) => setEditingStrategy({ ...editingStrategy, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">重点领域（用逗号分隔）</label>
+                <input
+                  type="text"
+                  value={editingStrategy.focusAreas.join(', ')}
+                  onChange={(e) => setEditingStrategy({ ...editingStrategy, focusAreas: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">目标结果（用逗号分隔）</label>
+                <input
+                  type="text"
+                  value={editingStrategy.targetOutcomes.join(', ')}
+                  onChange={(e) => setEditingStrategy({ ...editingStrategy, targetOutcomes: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div className="flex items-center justify-end space-x-2 pt-4">
+                <button
+                  onClick={() => setEditingStrategy(null)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => {
+                    if (editingStrategy.name.trim() && editingStrategy.description.trim()) {
+                      handleUpdateStrategy(editingStrategy.id, editingStrategy);
+                    }
+                  }}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                >
+                  保存
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

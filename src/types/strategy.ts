@@ -3,11 +3,20 @@
 // 市场维度
 export type MarketDimension = 'class' | 'molecule' | 'department' | 'priceBand' | 'brand' | 'channel' | 'province';
 
+// 维度配置：定义哪些维度可以作为横纵轴
+export interface DimensionConfig {
+  key: string; // 维度标识（如 'dimension1', 'dimension2', 'dimension3' 等）
+  label: string; // 维度显示名称
+  type: MarketDimension; // 维度类型
+  isAvailableForAxis: boolean; // 是否可作为横纵轴
+}
+
 // 市场数据点
 export interface MarketDataPoint {
   id: string;
-  dimension1: string; // 横轴维度值
-  dimension2: string; // 纵轴维度值
+  dimension1?: string; // 横轴维度值
+  dimension2?: string; // 纵轴维度值
+  [key: string]: any; // 支持动态维度字段（dimension3, dimension4, ...）
   value: number; // 市场份额或销售额
   huiZhiShare?: number; // 晖致份额
   competitorShare?: number; // 竞品份额
@@ -96,6 +105,3 @@ export interface StrategyDiscussion {
   }[];
   summary?: string; // AI总结
 }
-
-
-

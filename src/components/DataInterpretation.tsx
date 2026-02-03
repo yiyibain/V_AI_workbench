@@ -77,23 +77,31 @@ export default function DataInterpretation({
     
     selectionTimeoutRef.current = setTimeout(() => {
       const selection = window.getSelection();
-      if (selection && selection.toString().trim().length > 0) {
+      if (selection && selection.rangeCount > 0 && selection.toString().trim().length > 0) {
         const selected = selection.toString().trim();
         const range = selection.getRangeAt(0);
         
-        // 确定选中文本所在的板块
+        // 确定选中文本所在的板块 - 使用最简单直接的方法
         let section: string | null = null;
-        let sectionRef: React.RefObject<HTMLDivElement> | null = null;
         
-        if (anomalySectionRef.current && anomalySectionRef.current.contains(range.commonAncestorContainer as Node)) {
+        // 获取选中区域的共同祖先容器
+        const commonAncestor = range.commonAncestorContainer;
+        
+        // 检查共同祖先是否在某个板块内
+        const checkInSection = (sectionRef: React.RefObject<HTMLDivElement>): boolean => {
+          if (!sectionRef.current) return false;
+          // 检查共同祖先是否是section的子元素
+          return sectionRef.current.contains(commonAncestor as Node);
+        };
+        
+        // 优先检查异常数据解读板块
+        if (checkInSection(anomalySectionRef)) {
           section = 'anomaly';
-          sectionRef = anomalySectionRef;
-        } else if (summarySectionRef.current && summarySectionRef.current.contains(range.commonAncestorContainer as Node)) {
+        } else if (checkInSection(summarySectionRef)) {
           section = 'summary';
-          sectionRef = summarySectionRef;
         }
         
-        if (section && sectionRef && sectionRef.current) {
+        if (section) {
           setSelectedText(selected);
           setSelectedSection(section);
           setShowChatButton(true);
@@ -110,7 +118,7 @@ export default function DataInterpretation({
           setShowChat(false);
         }
       }
-    }, 150); // 150ms防抖
+    }, 100); // 减少防抖时间到100ms，提高响应速度
   };
 
   // 处理点击追问按钮
@@ -131,7 +139,13 @@ export default function DataInterpretation({
   };
 
   // 处理鼠标抬起事件（用于文本选择）
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    // 如果点击在对话框内，不处理文本选择
+    const chatPanel = target.closest('[data-ai-chat-panel="true"]');
+    if (chatPanel) {
+      return;
+    }
     handleTextSelection();
   };
 
@@ -140,15 +154,40 @@ export default function DataInterpretation({
     if (container) {
       container.addEventListener('mouseup', handleMouseUp);
       
-      // 点击外部区域时清除选择
+      // 点击外部区域时清除选择（延迟执行，避免与文本选择冲突）
       const handleClickOutside = (e: MouseEvent) => {
-        if (container && !container.contains(e.target as Node)) {
-          setSelectedText('');
-          setSelectedSection(null);
-          setShowChatButton(false);
-          setShowChat(false);
-          window.getSelection()?.removeAllRanges();
+        const target = e.target as HTMLElement;
+        
+        // 如果点击的是追问按钮，不清除选择
+        if (target.closest('button') && target.closest('button')?.textContent?.includes('追问')) {
+          return;
         }
+        
+        // 如果点击的是AI对话面板内的任何元素，不清除选择
+        const chatPanel = target.closest('[data-ai-chat-panel="true"]');
+        if (chatPanel) {
+          e.stopPropagation(); // 阻止事件冒泡
+          return; // 点击在对话框内，不执行任何清除操作
+        }
+        
+        // 如果对话框已打开，点击对话框外部也不清除（让用户通过关闭按钮关闭）
+        if (showChat) {
+          return; // 对话框打开时，不自动清除，让用户手动关闭
+        }
+        
+        setTimeout(() => {
+          const selection = window.getSelection();
+          // 如果点击在容器外部，或者没有选中文本，则清除
+          if (container && !container.contains(e.target as Node) && (!selection || selection.toString().trim().length === 0)) {
+            setSelectedText('');
+            setSelectedSection(null);
+            setShowChatButton(false);
+            setShowChat(false);
+            if (selection) {
+              selection.removeAllRanges();
+            }
+          }
+        }, 300);
       };
       
       document.addEventListener('mousedown', handleClickOutside);
@@ -161,7 +200,8 @@ export default function DataInterpretation({
         }
       };
     }
-  }, [selectedText]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showChat]); // 添加showChat作为依赖，确保对话框状态更新时重新绑定事件
 
   if (loading) {
     return (
@@ -191,10 +231,10 @@ export default function DataInterpretation({
             <AlertTriangle className="w-6 h-6 text-orange-500" />
             <h3 className="text-xl font-bold text-gray-900">异常数据解读</h3>
           </div>
-          {showChatButton && selectedSection === 'anomaly' && (
+          {showChatButton && selectedSection === 'anomaly' && selectedText && (
             <button
               onClick={handleAskQuestion}
-              className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors"
+              className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors shadow-sm z-10"
             >
               <MessageCircle className="w-4 h-4" />
               <span>追问</span>
@@ -249,10 +289,10 @@ export default function DataInterpretation({
             <MessageCircle className="w-6 h-6 text-primary-500" />
             <h3 className="text-xl font-bold text-gray-900">AI总结分析</h3>
           </div>
-          {showChatButton && selectedSection === 'summary' && (
+          {showChatButton && selectedSection === 'summary' && selectedText && (
             <button
               onClick={handleAskQuestion}
-              className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors"
+              className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors shadow-sm z-10"
             >
               <MessageCircle className="w-4 h-4" />
               <span>追问</span>
@@ -327,12 +367,6 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
               <span className="flex items-center space-x-1">
                 <MapPin className="w-3 h-3" />
                 <span>{anomaly.location.province}</span>
-              </span>
-            )}
-            {anomaly.location.hospital && (
-              <span className="flex items-center space-x-1">
-                <Building2 className="w-3 h-3" />
-                <span>{anomaly.location.hospital}</span>
               </span>
             )}
             <span className="font-medium text-gray-900">
@@ -423,12 +457,12 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
         </div>
       )}
 
-      {/* 风险提示和建议方向（合并的风险点提炼内容） */}
+      {/* 风险提示（合并的风险点提炼内容） */}
       {anomaly.riskImplications && (
         <div className="border-t pt-4">
           <h5 className="text-sm font-semibold text-gray-700 mb-2">风险提示</h5>
           <p className="text-sm text-gray-700 mb-3">{anomaly.riskImplications.riskDescription}</p>
-          <div className="mb-3">
+          <div>
             <span
               className={clsx(
                 'text-xs px-2 py-1 rounded-full',
@@ -441,31 +475,6 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
             >
               {anomaly.riskImplications.riskLevel === 'high' ? '高风险' : anomaly.riskImplications.riskLevel === 'medium' ? '中风险' : '低风险'}
             </span>
-          </div>
-          <h5 className="text-sm font-semibold text-gray-700 mb-2">建议方向</h5>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <h6 className="text-xs font-semibold text-green-800 mb-2">短期方案</h6>
-              <ul className="space-y-1">
-                {anomaly.riskImplications.suggestedActions.shortTerm.map((action, index) => (
-                  <li key={index} className="text-xs text-green-700 flex items-start">
-                    <span className="text-green-600 mr-1">→</span>
-                    <span>{action}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <h6 className="text-xs font-semibold text-blue-800 mb-2">长期方案</h6>
-              <ul className="space-y-1">
-                {anomaly.riskImplications.suggestedActions.longTerm.map((action, index) => (
-                  <li key={index} className="text-xs text-blue-700 flex items-start">
-                    <span className="text-blue-600 mr-1">→</span>
-                    <span>{action}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
           </div>
         </div>
       )}
@@ -705,18 +714,13 @@ function generateAnomaliesWithCausesAndRisks(
       const lowPenetrationCount = highPotentialHospitals.filter((h) => h.penetrationRate < 40).length;
       
       if (avgPenetration < 40 || decliningCount > highPotentialHospitals.length * 0.4 || lowPenetrationCount > highPotentialHospitals.length * 0.5) {
-        const exampleHospitals = highPotentialHospitals
-          .filter((h) => h.penetrationRate < 40 || h.penetrationRateChange < -2)
-          .slice(0, 3)
-          .map((h) => h.hospitalName);
-
         anomalies.push({
           id: `anomaly-${anomalyId++}`,
           type: 'hospital',
           category: 'province',
           severity: avgPenetration < 35 || decliningCount > highPotentialHospitals.length * 0.6 ? 'high' : 'medium',
           title: `${province.provinceName}高潜医院表现不佳`,
-          description: `${province.provinceName}高潜医院平均渗透率仅${avgPenetration.toFixed(1)}%，${decliningCount}家医院出现下降，${lowPenetrationCount}家医院渗透率低于40%，未发挥增长潜力`,
+          description: `${province.provinceName}高潜医院平均渗透率仅${avgPenetration.toFixed(1)}%，未发挥增长潜力`,
           dataPoint: {
             label: '高潜医院平均渗透率',
             value: avgPenetration.toFixed(1),
@@ -725,23 +729,12 @@ function generateAnomaliesWithCausesAndRisks(
           },
           location: {
             province: province.provinceName,
-            hospital: exampleHospitals.length > 0 ? exampleHospitals.join('、') : undefined,
           },
           relatedData: [
             {
               type: '内部数据',
               source: '高潜医院平均渗透率',
               value: `${avgPenetration.toFixed(1)}%`,
-            },
-            {
-              type: '内部数据',
-              source: '下降医院数量',
-              value: `${decliningCount}家`,
-            },
-            {
-              type: '内部数据',
-              source: '低渗透率医院',
-              value: exampleHospitals.length > 0 ? `${exampleHospitals.join('、')}等` : '多家医院',
             },
           ],
           possibleCauses: [
@@ -797,18 +790,13 @@ function generateAnomaliesWithCausesAndRisks(
       const lowShareCount = coreHospitals.filter((h) => h.marketShare < province.marketShare * 0.8).length;
       
       if (avgMarketShare < province.marketShare * 0.8 || decliningCount > coreHospitals.length * 0.4 || lowShareCount > coreHospitals.length * 0.5) {
-        const exampleHospitals = coreHospitals
-          .filter((h) => h.marketShare < province.marketShare * 0.8 || h.marketShareChange < -1)
-          .slice(0, 3)
-          .map((h) => h.hospitalName);
-
         anomalies.push({
           id: `anomaly-${anomalyId++}`,
           type: 'hospital',
           category: 'province',
           severity: avgMarketShare < province.marketShare * 0.7 || decliningCount > coreHospitals.length * 0.6 ? 'high' : 'medium',
           title: `${province.provinceName}核心医院份额未达预期`,
-          description: `${province.provinceName}核心医院平均市场份额${avgMarketShare.toFixed(1)}%，低于省份平均水平${province.marketShare.toFixed(1)}%，${decliningCount}家医院出现下降，${lowShareCount}家医院份额低于预期`,
+          description: `${province.provinceName}核心医院平均市场份额${avgMarketShare.toFixed(1)}%，低于省份平均水平${province.marketShare.toFixed(1)}%`,
           dataPoint: {
             label: '核心医院平均市场份额',
             value: avgMarketShare.toFixed(1),
@@ -817,7 +805,6 @@ function generateAnomaliesWithCausesAndRisks(
           },
           location: {
             province: province.provinceName,
-            hospital: exampleHospitals.length > 0 ? exampleHospitals.join('、') : undefined,
           },
           relatedData: [
             {
@@ -829,11 +816,6 @@ function generateAnomaliesWithCausesAndRisks(
               type: '内部数据',
               source: '省份平均市场份额',
               value: `${province.marketShare.toFixed(1)}%`,
-            },
-            {
-              type: '内部数据',
-              source: '下降医院数量',
-              value: `${decliningCount}家`,
             },
           ],
           possibleCauses: [

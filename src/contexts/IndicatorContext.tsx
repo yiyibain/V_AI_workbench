@@ -5,9 +5,19 @@ import {
   IndicatorRecommendation,
   IndicatorBaseline,
   IndicatorTargetPlan,
+  Strategy,
 } from '../types/indicator';
 
 interface IndicatorContextType {
+  // 策略列表管理（tab1和tab2共享）
+  strategies: Strategy[];
+  setStrategies: (strategies: Strategy[]) => void;
+  addStrategy: (strategy: Strategy) => void;
+  updateStrategy: (id: string, strategy: Partial<Strategy>) => void;
+  deleteStrategy: (id: string) => void;
+  selectedStrategyTab1: Strategy | null;
+  setSelectedStrategyTab1: (strategy: Strategy | null) => void;
+  
   // 潜在指标列表缓存（基于策略）
   potentialIndicatorsCache: Map<string, Indicator[]>;
   getCachedPotentialIndicators: (strategyId: string) => Indicator[] | null;
@@ -42,6 +52,10 @@ interface IndicatorContextType {
 const IndicatorContext = createContext<IndicatorContextType | undefined>(undefined);
 
 export function IndicatorProvider({ children }: { children: ReactNode }) {
+  // 策略列表管理（tab1和tab2共享）
+  const [strategies, setStrategiesState] = useState<Strategy[]>([]);
+  const [selectedStrategyTab1, setSelectedStrategyTab1State] = useState<Strategy | null>(null);
+  
   // 潜在指标列表缓存
   const [potentialIndicatorsCache, setPotentialIndicatorsCache] = useState<
     Map<string, Indicator[]>
@@ -64,6 +78,37 @@ export function IndicatorProvider({ children }: { children: ReactNode }) {
   const [targetPlanCache, setTargetPlanCache] = useState<Map<string, IndicatorTargetPlan>>(
     new Map()
   );
+
+  // 策略列表管理方法
+  const setStrategies = useCallback((newStrategies: Strategy[]) => {
+    setStrategiesState(newStrategies);
+  }, []);
+
+  const addStrategy = useCallback((strategy: Strategy) => {
+    setStrategiesState((prev) => [...prev, strategy]);
+  }, []);
+
+  const updateStrategy = useCallback((id: string, updates: Partial<Strategy>) => {
+    setStrategiesState((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
+    );
+    // 如果更新的是当前选中的策略，也要更新
+    if (selectedStrategyTab1?.id === id) {
+      setSelectedStrategyTab1State((prev) => (prev ? { ...prev, ...updates } : null));
+    }
+  }, [selectedStrategyTab1]);
+
+  const deleteStrategy = useCallback((id: string) => {
+    setStrategiesState((prev) => prev.filter((s) => s.id !== id));
+    // 如果删除的是当前选中的策略，清空选择
+    if (selectedStrategyTab1?.id === id) {
+      setSelectedStrategyTab1State(null);
+    }
+  }, [selectedStrategyTab1]);
+
+  const setSelectedStrategyTab1 = useCallback((strategy: Strategy | null) => {
+    setSelectedStrategyTab1State(strategy);
+  }, []);
 
   // 潜在指标列表缓存方法
   const getCachedPotentialIndicators = useCallback(
@@ -212,6 +257,13 @@ export function IndicatorProvider({ children }: { children: ReactNode }) {
   return (
     <IndicatorContext.Provider
       value={{
+        strategies,
+        setStrategies,
+        addStrategy,
+        updateStrategy,
+        deleteStrategy,
+        selectedStrategyTab1,
+        setSelectedStrategyTab1,
         potentialIndicatorsCache,
         getCachedPotentialIndicators,
         setCachedPotentialIndicators,

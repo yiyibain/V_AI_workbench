@@ -1,142 +1,281 @@
-import { useState, useMemo } from 'react';
-import { MarketDimension, MarketDataPoint, MekkoConfig } from '../../types/strategy';
-import { mockMarketData, dimensionOptions } from '../../data/strategyMockData';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from 'recharts';
-import { Filter, TrendingUp, AlertCircle } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { MarketDataPoint, DimensionConfig } from '../../types/strategy';
+import { dimensionOptions } from '../../data/strategyMockData';
+import { Filter, TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { readExcelFile } from '../../services/excelService';
+import MekkoChart from './MekkoChart';
 
 export default function MarketOverview() {
   const [selectedBrand, setSelectedBrand] = useState<string>('立普妥');
-  const [selectedDimensions, setSelectedDimensions] = useState<MekkoConfig>({
-    xAxis: 'channel',
-    yAxis: 'department',
-    metric: 'share',
-  });
   const [filters, setFilters] = useState<{
     province?: string[];
+    channel?: string[];
   }>({});
-
+  
+  // 从数据中提取维度配置
+  const [availableDimensions, setAvailableDimensions] = useState<DimensionConfig[]>([]);
+  const [selectedXAxisKey, setSelectedXAxisKey] = useState<string>('dimension1');
+  const [selectedYAxisKey, setSelectedYAxisKey] = useState<string>('dimension2');
+  const [marketData, setMarketData] = useState<MarketDataPoint[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  
   // 获取维度值的辅助函数
-  const getDimensionValue = (point: MarketDataPoint, dimension: MarketDimension): string => {
-    switch (dimension) {
-      case 'channel':
-        // dimension1是渠道
-        return point.dimension1;
-      case 'department':
-        // dimension2是科室
-        return point.dimension2;
-      case 'brand':
-        // 品牌在数据中不直接存储，通过筛选获得
-        return point.dimension2;
-      default:
-        return point.dimension1;
-    }
+  const getDimensionValue = (point: MarketDataPoint, dimensionKey: string): string => {
+    return (point[dimensionKey] as string) || '';
+  };
+  
+  // 从数据中提取渠道选项
+  const channelOptions = useMemo(() => {
+    if (marketData.length === 0) return [];
+    
+    // 找到渠道维度
+    const channelDim = availableDimensions.find(d => 
+      d.label.toLowerCase().includes('渠道') || 
+      d.label.toLowerCase().includes('channel') ||
+      d.label.toLowerCase().includes('店铺') ||
+      d.label.toLowerCase().includes('平台')
+    );
+    
+    if (!channelDim) return [];
+    
+    // 提取所有唯一的渠道值
+    const channelSet = new Set<string>();
+    marketData.forEach((point) => {
+      const channelValue = getDimensionValue(point, channelDim.key);
+      if (channelValue) {
+        channelSet.add(channelValue);
+      }
+    });
+    
+    return Array.from(channelSet).sort();
+  }, [marketData, availableDimensions]);
+  
+  useEffect(() => {
+    // 读取Excel文件
+    const loadExcelData = async () => {
+      try {
+        setLoading(true);
+        // 添加时间戳防止缓存
+        const timestamp = new Date().getTime();
+        const excelPath = `/dataset.xlsx?t=${timestamp}`;
+        
+        console.log('开始加载Excel文件:', excelPath);
+        const result = await readExcelFile(excelPath);
+        
+        console.log('Excel数据加载成功:', {
+          数据条数: result.data.length,
+          维度数量: result.dimensionConfigs.length,
+          维度列表: result.dimensionConfigs.map(d => d.label)
+        });
+        
+        setMarketData(result.data);
+        setAvailableDimensions(result.dimensionConfigs);
+        
+        // 设置默认的横纵轴
+        if (result.dimensionConfigs.length > 0) {
+          setSelectedXAxisKey(result.dimensionConfigs[0].key);
+          if (result.dimensionConfigs.length > 1) {
+            setSelectedYAxisKey(result.dimensionConfigs[1].key);
+          }
+        }
+      } catch (error) {
+        console.error('加载Excel数据失败:', error);
+        setMarketData([]);
+        setAvailableDimensions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadExcelData();
+  }, []);
+  
+  // 处理渠道筛选变化
+  const handleChannelFilterChange = (channel: string) => {
+    setFilters((prev) => {
+      const current = prev.channel || [];
+      const newValue = current.includes(channel)
+        ? current.filter((v: string) => v !== channel)
+        : [...current, channel];
+      return {
+        ...prev,
+        channel: newValue.length > 0 ? newValue : undefined,
+      };
+    });
   };
 
-  // 处理数据，生成Mekko图表所需格式（堆叠柱状图）
-  const processedData = useMemo(() => {
-    let filtered = [...mockMarketData];
+  // 处理数据，生成Mekko图表所需格式
+  // Mekko图：X轴维度作为柱子，柱子宽度代表总市场份额，柱子内部按Y轴维度堆叠，高度代表占比
+  const mekkoData = useMemo(() => {
+    if (marketData.length === 0) return [];
+    
+    let filtered = [...marketData];
 
-    // 首先按品牌筛选（当前数据都是立普妥，所以暂时不过滤，后续可以扩展）
-    // 注意：当前mockData都是立普妥的数据，如果后续添加其他品牌数据，需要在这里筛选
-    // filtered = filtered.filter((point) => {
-    //   return point.brand === selectedBrand;
-    // });
+    // 应用渠道筛选
+    if (filters.channel && filters.channel.length > 0) {
+      const channelDim = availableDimensions.find(d => 
+        d.label.toLowerCase().includes('渠道') || 
+        d.label.toLowerCase().includes('channel') ||
+        d.label.toLowerCase().includes('店铺') ||
+        d.label.toLowerCase().includes('平台')
+      );
+      if (channelDim) {
+        filtered = filtered.filter((d) => {
+          const channelValue = getDimensionValue(d, channelDim.key);
+          return filters.channel!.includes(channelValue);
+        });
+      }
+    }
 
     // 应用省份筛选
     if (filters.province && filters.province.length > 0) {
       filtered = filtered.filter((d) => filters.province!.includes(d.province || ''));
     }
 
-    // 按选择的维度分组（排除brand维度，因为已经按品牌筛选了）
-    const grouped = new Map<string, { 
-      segment: string; 
-      totalShare: number; 
-      huiZhiShare: number; 
-      competitorShare: number;
-      otherShare: number;
-    }>();
+    // 计算总金额（用于计算百分比）
+    const totalValue = filtered.reduce((sum, point) => sum + (point.value || 0), 0);
+    
+    if (totalValue === 0) return [];
 
+    // 第一步：按X轴维度分组，计算每个X轴维度的总金额
+    const xAxisGroups = new Map<string, number>();
     filtered.forEach((point) => {
-      // 获取横轴和纵轴的值
-      const xValue = getDimensionValue(point, selectedDimensions.xAxis);
-      const yValue = getDimensionValue(point, selectedDimensions.yAxis);
-      
-      // 构建细分市场标识
-      const segment = `${xValue} × ${yValue}`;
+      const xValue = getDimensionValue(point, selectedXAxisKey);
+      if (!xValue) return;
+      xAxisGroups.set(xValue, (xAxisGroups.get(xValue) || 0) + (point.value || 0));
+    });
 
-      if (!grouped.has(segment)) {
-        grouped.set(segment, {
-          segment,
-          totalShare: 0,
-          huiZhiShare: 0,
-          competitorShare: 0,
-          otherShare: 0,
+    // 第二步：为每个X轴维度，按Y轴维度分组，计算占比
+    const result: Array<{
+      xAxisValue: string;
+      xAxisTotalValue: number;
+      xAxisTotalShare: number; // X轴维度占总市场的百分比（决定柱子宽度）
+      segments: Array<{
+        yAxisValue: string;
+        value: number;
+        share: number; // Y轴维度在该X轴维度中的占比（决定柱子内段的高度）
+      }>;
+    }> = [];
+
+    xAxisGroups.forEach((xAxisTotalValue, xAxisValue) => {
+      // 计算该X轴维度占总市场的百分比（决定柱子宽度）
+      const xAxisTotalShare = (xAxisTotalValue / totalValue) * 100;
+
+      // 在该X轴维度内，按Y轴维度分组
+      const yAxisGroups = new Map<string, number>();
+      filtered.forEach((point) => {
+        const xValue = getDimensionValue(point, selectedXAxisKey);
+        const yValue = getDimensionValue(point, selectedYAxisKey);
+        if (xValue === xAxisValue && yValue) {
+          yAxisGroups.set(yValue, (yAxisGroups.get(yValue) || 0) + (point.value || 0));
+        }
+      });
+
+      // 计算每个Y轴维度在该X轴维度中的占比
+      const segments: Array<{
+        yAxisValue: string;
+        value: number;
+        share: number;
+      }> = [];
+
+      yAxisGroups.forEach((value, yAxisValue) => {
+        const share = (value / xAxisTotalValue) * 100;
+        segments.push({ yAxisValue, value, share });
+      });
+
+      // 确保占比总和为100%
+      const segmentSum = segments.reduce((s, seg) => s + seg.share, 0);
+      if (Math.abs(segmentSum - 100) > 0.01) {
+        const scale = 100 / segmentSum;
+        segments.forEach(seg => {
+          seg.share = seg.share * scale;
         });
       }
 
-      const group = grouped.get(segment)!;
-      // 累加市场份额
-      group.totalShare += point.value;
-      // 累加晖致和竞品份额（基于总份额的百分比）
-      group.huiZhiShare += (point.huiZhiShare || 0) * (point.value / 100);
-      group.competitorShare += (point.competitorShare || 0) * (point.value / 100);
+      // 按占比降序排序
+      segments.sort((a, b) => b.share - a.share);
+
+      result.push({
+        xAxisValue,
+        xAxisTotalValue,
+        xAxisTotalShare,
+        segments,
+      });
     });
 
-    // 转换为数组，计算其他份额，并按总份额排序
-    const result = Array.from(grouped.values()).map((item) => {
-      // 计算其他份额（总份额 - 晖致份额 - 竞品份额）
-      item.otherShare = Math.max(0, item.totalShare - item.huiZhiShare - item.competitorShare);
-      return item;
-    });
-
-    // 按总份额降序排序
-    result.sort((a, b) => b.totalShare - a.totalShare);
+    // 按X轴总份额降序排序
+    result.sort((a, b) => b.xAxisTotalShare - a.xAxisTotalShare);
 
     return result;
-  }, [selectedBrand, selectedDimensions, filters]);
+  }, [marketData, selectedXAxisKey, selectedYAxisKey, filters, availableDimensions]);
 
-  // 识别机会点（晖致份额明显低、市场潜力大的细分市场）
+  // 识别机会点（市场份额大的细分市场）
   const opportunities = useMemo(() => {
-    return processedData
-      .filter((item) => item.huiZhiShare < 20 && item.totalShare > 15) // 份额低于20%且市场规模大于15
+    const allSegments: Array<{
+      segment: string;
+      totalShare: number;
+      totalValue: number;
+    }> = [];
+    
+    mekkoData.forEach((xAxisGroup) => {
+      xAxisGroup.segments.forEach((segment) => {
+        // 计算该细分市场占总市场的百分比
+        const totalShare = (xAxisGroup.xAxisTotalShare * segment.share) / 100;
+        allSegments.push({
+          segment: `${xAxisGroup.xAxisValue} × ${segment.yAxisValue}`,
+          totalShare,
+          totalValue: segment.value,
+        });
+      });
+    });
+    
+    return allSegments
+      .filter((item) => item.totalShare > 5) // 市场份额大于5%
       .sort((a, b) => b.totalShare - a.totalShare)
       .slice(0, 5);
-  }, [processedData]);
+  }, [mekkoData]);
 
-  const handleDimensionChange = (axis: 'xAxis' | 'yAxis', dimension: MarketDimension) => {
-    setSelectedDimensions((prev) => ({
-      ...prev,
-      [axis]: dimension,
-    }));
+  const handleDimensionChange = (axis: 'xAxis' | 'yAxis', dimensionKey: string) => {
+    if (axis === 'xAxis') {
+      setSelectedXAxisKey(dimensionKey);
+    } else {
+      setSelectedYAxisKey(dimensionKey);
+    }
   };
 
-  const handleFilterChange = (key: 'province', value: string) => {
-    setFilters((prev) => {
-      const current = prev[key] || [];
-      const newValue = current.includes(value)
-        ? current.filter((v: string) => v !== value)
-        : [...current, value];
-      return {
-        ...prev,
-        [key]: newValue.length > 0 ? newValue : undefined,
-      };
-    });
+  // 获取当前选择的维度标签
+  const getSelectedXAxisLabel = () => {
+    const dim = availableDimensions.find(d => d.key === selectedXAxisKey);
+    return dim ? dim.label : '横轴维度';
   };
 
-  // 获取维度显示名称
-  const getDimensionLabel = (dim: MarketDimension): string => {
-    const labels: Record<MarketDimension, string> = {
-      class: '类别',
-      molecule: '分子式',
-      department: '治疗科室',
-      priceBand: '价格带',
-      brand: '品牌',
-      channel: '渠道',
-      province: '省份',
-    };
-    return labels[dim] || dim;
+  const getSelectedYAxisLabel = () => {
+    const dim = availableDimensions.find(d => d.key === selectedYAxisKey);
+    return dim ? dim.label : '纵轴维度';
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+          <p className="text-gray-600">正在加载数据...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (marketData.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">未能加载数据，请检查 dataset.xlsx 文件</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -161,6 +300,29 @@ export default function MarketOverview() {
             ))}
           </div>
         </div>
+        
+        {/* 渠道筛选 */}
+        {channelOptions.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">选择渠道</label>
+            <div className="flex flex-wrap gap-2">
+              {channelOptions.map((channel) => (
+                <button
+                  key={channel}
+                  onClick={() => handleChannelFilterChange(channel)}
+                  className={clsx(
+                    'px-3 py-1 rounded-lg text-sm transition-colors',
+                    filters.channel?.includes(channel)
+                      ? 'bg-primary-100 text-primary-700 border border-primary-300'
+                      : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+                  )}
+                >
+                  {channel}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 维度选择和筛选 */}
@@ -174,65 +336,54 @@ export default function MarketOverview() {
           {/* 横轴选择 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">横轴维度</label>
-            <div className="flex flex-wrap gap-2">
-              {(['channel', 'department'] as MarketDimension[]).map((dim) => (
-                <button
-                  key={dim}
-                  onClick={() => handleDimensionChange('xAxis', dim)}
-                  className={clsx(
-                    'px-3 py-1 rounded-lg text-sm font-medium transition-colors',
-                    selectedDimensions.xAxis === dim
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  )}
-                >
-                  {getDimensionLabel(dim)}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
+              {availableDimensions.length > 0 ? (
+                availableDimensions.map((dim) => (
+                  <button
+                    key={dim.key}
+                    onClick={() => handleDimensionChange('xAxis', dim.key)}
+                    className={clsx(
+                      'px-3 py-1 rounded-lg text-sm font-medium transition-colors',
+                      selectedXAxisKey === dim.key
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+                      dim.key === selectedYAxisKey && 'opacity-50 cursor-not-allowed'
+                    )}
+                    disabled={dim.key === selectedYAxisKey} // 不能与纵轴相同
+                  >
+                    {dim.label}
+                  </button>
+                ))
+              ) : (
+                <p className="text-gray-500 text-sm">暂无可用维度</p>
+              )}
             </div>
           </div>
 
           {/* 纵轴选择 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">纵轴维度</label>
-            <div className="flex flex-wrap gap-2">
-              {(['department', 'channel'] as MarketDimension[]).map((dim) => (
-                <button
-                  key={dim}
-                  onClick={() => handleDimensionChange('yAxis', dim)}
-                  className={clsx(
-                    'px-3 py-1 rounded-lg text-sm font-medium transition-colors',
-                    selectedDimensions.yAxis === dim
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  )}
-                >
-                  {getDimensionLabel(dim)}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* 筛选器 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">省份筛选</label>
-            <div className="flex flex-wrap gap-2">
-              {dimensionOptions.province.map((province) => (
-                <button
-                  key={province}
-                  onClick={() => handleFilterChange('province', province)}
-                  className={clsx(
-                    'px-3 py-1 rounded-lg text-sm transition-colors',
-                    filters.province?.includes(province)
-                      ? 'bg-primary-100 text-primary-700 border border-primary-300'
-                      : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
-                  )}
-                >
-                  {province}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
+              {availableDimensions.length > 0 ? (
+                availableDimensions.map((dim) => (
+                  <button
+                    key={dim.key}
+                    onClick={() => handleDimensionChange('yAxis', dim.key)}
+                    className={clsx(
+                      'px-3 py-1 rounded-lg text-sm font-medium transition-colors',
+                      selectedYAxisKey === dim.key
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+                      dim.key === selectedXAxisKey && 'opacity-50 cursor-not-allowed'
+                    )}
+                    disabled={dim.key === selectedXAxisKey} // 不能与横轴相同
+                  >
+                    {dim.label}
+                  </button>
+                ))
+              ) : (
+                <p className="text-gray-500 text-sm">暂无可用维度</p>
+              )}
             </div>
           </div>
         </div>
@@ -240,80 +391,25 @@ export default function MarketOverview() {
 
       {/* Mekko图表 */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="mb-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Mekko数据看板</h3>
-            <p className="text-sm text-gray-600">
-              <span className="font-semibold text-primary-600">{selectedBrand}</span> - {getDimensionLabel(selectedDimensions.xAxis === 'brand' ? selectedDimensions.yAxis : selectedDimensions.xAxis)} 市场份额分析
+        <div className="mb-4">
+          <h3 className="text-lg font-bold text-gray-900 mb-2">Mekko数据看板</h3>
+          <p className="text-sm text-gray-600">
+            <span className="font-semibold text-primary-600">{selectedBrand}</span> - {getSelectedXAxisLabel()} × {getSelectedYAxisLabel()} 市场份额分析
+          </p>
+          {mekkoData.length > 0 && (
+            <p className="text-xs text-gray-500 mt-1">
+              总计: {mekkoData.reduce((sum, item) => sum + item.xAxisTotalShare, 0).toFixed(2)}%
             </p>
-          </div>
+          )}
+        </div>
 
-        <ResponsiveContainer width="100%" height={600}>
-          <BarChart 
-            data={processedData} 
-            margin={{ top: 20, right: 30, left: 20, bottom: 100 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="segment" 
-              angle={-45}
-              textAnchor="end"
-              height={120}
-              interval={0}
-              tick={{ fontSize: 11 }}
-            />
-            <YAxis 
-              domain={[0, 'dataMax']}
-              label={{ value: '市场份额 (%)', angle: -90, position: 'insideLeft' }}
-            />
-            <Tooltip
-              formatter={(value: any, name: string) => {
-                return [`${value.toFixed(1)}%`, name];
-              }}
-              contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)' }}
-            />
-            <Legend 
-              wrapperStyle={{ paddingTop: '20px' }}
-            />
-            {/* 堆叠柱状图：晖致份额、竞品份额、其他份额 */}
-            <Bar 
-              dataKey="huiZhiShare" 
-              name="晖致份额" 
-              stackId="market"
-              fill="#10b981"
-            >
-              {processedData.map((_, index) => (
-                <Cell key={`cell-huiZhi-${index}`} fill="#10b981" />
-              ))}
-            </Bar>
-            <Bar 
-              dataKey="competitorShare" 
-              name="竞品份额" 
-              stackId="market"
-              fill="#ef4444"
-            >
-              {processedData.map((_, index) => (
-                <Cell key={`cell-competitor-${index}`} fill="#ef4444" />
-              ))}
-            </Bar>
-            <Bar 
-              dataKey="otherShare" 
-              name="其他份额" 
-              stackId="market"
-              fill="#94a3b8"
-            >
-              {processedData.map((_, index) => (
-                <Cell key={`cell-other-${index}`} fill="#94a3b8" />
-              ))}
-              {/* 在最后一个堆叠柱子上方显示总份额 */}
-              <LabelList 
-                dataKey="totalShare" 
-                position="top" 
-                formatter={(value: number) => `${value.toFixed(1)}%`}
-                style={{ fill: '#333', fontSize: '11px', fontWeight: 'bold' }}
-              />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        {mekkoData.length > 0 ? (
+          <MekkoChart data={mekkoData} />
+        ) : (
+          <div className="flex items-center justify-center h-96">
+            <p className="text-gray-500">暂无数据可显示</p>
+          </div>
+        )}
       </div>
 
       {/* 机会点识别 */}
@@ -321,10 +417,10 @@ export default function MarketOverview() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center space-x-2 mb-4">
             <AlertCircle className="w-5 h-5 text-orange-500" />
-            <h3 className="text-lg font-bold text-gray-900">机会点识别</h3>
+            <h3 className="text-lg font-bold text-gray-900">主要细分市场</h3>
           </div>
           <p className="text-sm text-gray-600 mb-4">
-            AI识别出以下值得晖致明显未布局/份额明显低、具备提升潜力的细分市场：
+            市场份额大于5%的主要细分市场：
           </p>
           <div className="space-y-3">
             {opportunities.map((opp, index) => (
@@ -339,22 +435,11 @@ export default function MarketOverview() {
                         {opp.segment}
                       </span>
                       <span className="text-xs px-2 py-1 rounded-full bg-orange-200 text-orange-800">
-                        市场份额 {opp.totalShare.toFixed(1)}%
+                        市场份额 {opp.totalShare.toFixed(2)}%
                       </span>
                     </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">晖致份额：</span>
-                        <span className="font-semibold text-red-600">{opp.huiZhiShare.toFixed(1)}%</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">竞品份额：</span>
-                        <span className="font-semibold text-gray-900">{opp.competitorShare.toFixed(1)}%</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">差距：</span>
-                        <span className="font-semibold text-orange-600">{(opp.competitorShare - opp.huiZhiShare).toFixed(1)}%</span>
-                      </div>
+                    <div className="text-sm text-gray-600">
+                      金额: {opp.totalValue.toLocaleString('zh-CN', { maximumFractionDigits: 0 })} 元
                     </div>
                   </div>
                   <TrendingUp className="w-5 h-5 text-orange-500" />
@@ -375,4 +460,3 @@ export default function MarketOverview() {
     </div>
   );
 }
-

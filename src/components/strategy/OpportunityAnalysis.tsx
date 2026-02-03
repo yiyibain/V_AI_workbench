@@ -1,16 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Opportunity, ReasonDimension, OpportunityAnalysis as OppAnalysis } from '../../types/strategy';
 import { mockOpportunities, defaultReasonDimensions } from '../../data/strategyMockData';
-import { Plus, X, CheckCircle } from 'lucide-react';
+import { Plus, X, CheckCircle, Edit2, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export default function OpportunityAnalysis() {
-  const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(mockOpportunities[0]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>(mockOpportunities);
+  const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(opportunities[0] || null);
   const [reasonDimensions, setReasonDimensions] = useState<ReasonDimension[]>(defaultReasonDimensions);
   const [analysis, setAnalysis] = useState<OppAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [newDimensionName, setNewDimensionName] = useState('');
   const [showAddDimension, setShowAddDimension] = useState(false);
+  const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
+  const [showAddOpportunity, setShowAddOpportunity] = useState(false);
+  const [newOpportunity, setNewOpportunity] = useState({
+    title: '',
+    description: '',
+    marketSegment: '',
+    currentGap: '',
+    potential: 'medium' as 'high' | 'medium' | 'low',
+  });
 
   const handleAddDimension = () => {
     if (!newDimensionName.trim()) return;
@@ -29,6 +39,71 @@ export default function OpportunityAnalysis() {
 
   const handleRemoveDimension = (id: string) => {
     setReasonDimensions(reasonDimensions.filter((d) => d.id !== id));
+  };
+
+  // 当opportunities变化时，更新selectedOpportunity
+  useEffect(() => {
+    if (opportunities.length > 0 && !selectedOpportunity) {
+      setSelectedOpportunity(opportunities[0]);
+    } else if (selectedOpportunity && !opportunities.find((o) => o.id === selectedOpportunity.id)) {
+      // 如果当前选中的机会点被删除了，选择第一个
+      setSelectedOpportunity(opportunities[0] || null);
+    }
+  }, [opportunities, selectedOpportunity]);
+
+  const handleAddOpportunity = () => {
+    if (!newOpportunity.title.trim() || !newOpportunity.marketSegment.trim()) {
+      return;
+    }
+
+    const opp: Opportunity = {
+      id: `opp-${Date.now()}`,
+      title: newOpportunity.title.trim(),
+      description: newOpportunity.description.trim(),
+      marketSegment: newOpportunity.marketSegment.trim(),
+      currentGap: newOpportunity.currentGap.trim(),
+      potential: newOpportunity.potential,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    setOpportunities([...opportunities, opp]);
+    setSelectedOpportunity(opp);
+    setNewOpportunity({
+      title: '',
+      description: '',
+      marketSegment: '',
+      currentGap: '',
+      potential: 'medium',
+    });
+    setShowAddOpportunity(false);
+  };
+
+  const handleUpdateOpportunity = (id: string, updates: Partial<Opportunity>) => {
+    setOpportunities(
+      opportunities.map((opp) =>
+        opp.id === id
+          ? { ...opp, ...updates, updatedAt: new Date() }
+          : opp
+      )
+    );
+    if (selectedOpportunity?.id === id) {
+      setSelectedOpportunity({ ...selectedOpportunity, ...updates, updatedAt: new Date() });
+    }
+    setEditingOpportunity(null);
+  };
+
+  const handleDeleteOpportunity = (id: string) => {
+    if (window.confirm('确定要删除这个机会点吗？')) {
+      setOpportunities(opportunities.filter((opp) => opp.id !== id));
+      if (selectedOpportunity?.id === id) {
+        setSelectedOpportunity(null);
+      }
+    }
+  };
+
+  const handleStartEdit = (opp: Opportunity) => {
+    setEditingOpportunity({ ...opp });
   };
 
   const handleAnalyze = async () => {
@@ -54,10 +129,9 @@ export default function OpportunityAnalysis() {
   const generateMockAnalysis = (dim: ReasonDimension, opp: Opportunity): string => {
     const analyses: Record<string, string> = {
       product: `产品因素：${opp.marketSegment}中，晖致产品在适应症覆盖、价格竞争力等方面存在不足，需要优化产品定位和定价策略。`,
-      businessModel: `商业模式因素：当前渠道策略和推广模式可能不适合该细分市场，需要调整商业模式以适应市场特点。`,
+      businessModel: `商业推广因素：当前渠道策略和推广模式可能不适合该细分市场，需要调整商业模式以适应市场特点。`,
       resource: `资源分配因素：在该细分市场的投入相对不足，人力、市场资源分配需要优化，以提升市场竞争力。`,
-      organization: `组织因素：团队能力建设和激励机制可能不够完善，需要加强组织能力建设和优化激励机制。`,
-      other: `其他因素：市场准入、政策变化等因素可能影响了在该细分市场的表现，需要关注政策变化和市场准入情况。`,
+      other: `环境因素：市场准入、政策变化等因素可能影响了在该细分市场的表现，需要关注政策变化和市场准入情况。`,
     };
     return analyses[dim.category] || `需要进一步分析${dim.name}对该机会点的影响。`;
   };
@@ -132,42 +206,235 @@ export default function OpportunityAnalysis() {
     <div className="space-y-6">
       {/* 机会点选择 */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">选择机会点</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-gray-900">选择机会点</h3>
+          <button
+            onClick={() => setShowAddOpportunity(!showAddOpportunity)}
+            className="flex items-center space-x-2 px-3 py-1.5 text-sm text-primary-600 hover:bg-primary-50 rounded-lg border border-primary-200"
+          >
+            <Plus className="w-4 h-4" />
+            <span>添加机会点</span>
+          </button>
+        </div>
+
+        {showAddOpportunity && (
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">标题 *</label>
+              <input
+                type="text"
+                value={newOpportunity.title}
+                onChange={(e) => setNewOpportunity({ ...newOpportunity, title: e.target.value })}
+                placeholder="输入机会点标题..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">细分市场 *</label>
+              <input
+                type="text"
+                value={newOpportunity.marketSegment}
+                onChange={(e) => setNewOpportunity({ ...newOpportunity, marketSegment: e.target.value })}
+                placeholder="输入细分市场..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">描述</label>
+              <textarea
+                value={newOpportunity.description}
+                onChange={(e) => setNewOpportunity({ ...newOpportunity, description: e.target.value })}
+                placeholder="输入机会点描述..."
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">当前缺口</label>
+              <input
+                type="text"
+                value={newOpportunity.currentGap}
+                onChange={(e) => setNewOpportunity({ ...newOpportunity, currentGap: e.target.value })}
+                placeholder="输入当前缺口描述..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">潜力</label>
+              <select
+                value={newOpportunity.potential}
+                onChange={(e) => setNewOpportunity({ ...newOpportunity, potential: e.target.value as 'high' | 'medium' | 'low' })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="high">高潜力</option>
+                <option value="medium">中潜力</option>
+                <option value="low">低潜力</option>
+              </select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleAddOpportunity}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              >
+                添加
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddOpportunity(false);
+                  setNewOpportunity({
+                    title: '',
+                    description: '',
+                    marketSegment: '',
+                    currentGap: '',
+                    potential: 'medium',
+                  });
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {mockOpportunities.map((opp) => (
-            <button
+          {opportunities.map((opp) => (
+            <div
               key={opp.id}
-              onClick={() => {
-                setSelectedOpportunity(opp);
-                setAnalysis(null);
-              }}
               className={clsx(
-                'text-left p-4 rounded-lg border-2 transition-all',
+                'relative text-left p-4 rounded-lg border-2 transition-all',
                 selectedOpportunity?.id === opp.id
                   ? 'border-primary-500 bg-primary-50'
                   : 'border-gray-200 hover:border-gray-300'
               )}
             >
-              <div className="font-semibold text-gray-900 mb-1">{opp.title}</div>
-              <div className="text-sm text-gray-600 mb-2">{opp.marketSegment}</div>
-              <div className="flex items-center space-x-2">
-                <span
-                  className={clsx(
-                    'text-xs px-2 py-1 rounded',
-                    opp.potential === 'high'
-                      ? 'bg-red-100 text-red-700'
-                      : opp.potential === 'medium'
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-gray-100 text-gray-700'
-                  )}
+              <button
+                onClick={() => {
+                  setSelectedOpportunity(opp);
+                  setAnalysis(null);
+                }}
+                className="w-full text-left"
+              >
+                <div className="font-semibold text-gray-900 mb-1">{opp.title}</div>
+                <div className="text-sm text-gray-600 mb-2">{opp.marketSegment}</div>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={clsx(
+                      'text-xs px-2 py-1 rounded',
+                      opp.potential === 'high'
+                        ? 'bg-red-100 text-red-700'
+                        : opp.potential === 'medium'
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : 'bg-gray-100 text-gray-700'
+                    )}
+                  >
+                    {opp.potential === 'high' ? '高潜力' : opp.potential === 'medium' ? '中潜力' : '低潜力'}
+                  </span>
+                </div>
+              </button>
+              <div className="absolute top-2 right-2 flex items-center space-x-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStartEdit(opp);
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                  title="编辑"
                 >
-                  {opp.potential === 'high' ? '高潜力' : opp.potential === 'medium' ? '中潜力' : '低潜力'}
-                </span>
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteOpportunity(opp.id);
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                  title="删除"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       </div>
+
+      {/* 编辑机会点对话框 */}
+      {editingOpportunity && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">编辑机会点</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">标题 *</label>
+                <input
+                  type="text"
+                  value={editingOpportunity.title}
+                  onChange={(e) => setEditingOpportunity({ ...editingOpportunity, title: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">细分市场 *</label>
+                <input
+                  type="text"
+                  value={editingOpportunity.marketSegment}
+                  onChange={(e) => setEditingOpportunity({ ...editingOpportunity, marketSegment: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">描述</label>
+                <textarea
+                  value={editingOpportunity.description}
+                  onChange={(e) => setEditingOpportunity({ ...editingOpportunity, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">当前缺口</label>
+                <input
+                  type="text"
+                  value={editingOpportunity.currentGap}
+                  onChange={(e) => setEditingOpportunity({ ...editingOpportunity, currentGap: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">潜力</label>
+                <select
+                  value={editingOpportunity.potential}
+                  onChange={(e) => setEditingOpportunity({ ...editingOpportunity, potential: e.target.value as 'high' | 'medium' | 'low' })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="high">高潜力</option>
+                  <option value="medium">中潜力</option>
+                  <option value="low">低潜力</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-end space-x-2 pt-4">
+                <button
+                  onClick={() => setEditingOpportunity(null)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => {
+                    if (editingOpportunity.title.trim() && editingOpportunity.marketSegment.trim()) {
+                      handleUpdateOpportunity(editingOpportunity.id, editingOpportunity);
+                    }
+                  }}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                >
+                  保存
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedOpportunity && (
         <>
