@@ -21,7 +21,7 @@ export default function Chatbot() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const location = useLocation();
-  const { currentAnalysis, markNeedsRefresh } = useAnalysis();
+  const { currentAnalysis, markNeedsRefresh, chatbotInitialText, chatbotOpenTrigger, clearChatbotInitialText } = useAnalysis();
 
   // 获取当前页面名称
   const getCurrentPageName = () => {
@@ -43,6 +43,56 @@ export default function Chatbot() {
       inputRef.current.focus();
     }
   }, [isOpen, isMinimized]);
+
+  // 监听外部传入的初始文本
+  useEffect(() => {
+    if (chatbotInitialText && chatbotOpenTrigger > 0) {
+      setIsOpen(true);
+      setIsMinimized(false);
+      // 将初始文本添加到消息中并发送
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: `关于这段内容："${chatbotInitialText}"，请帮我更深入地分析原因，或者如果AI的判断有误，请纠正。`,
+        timestamp: new Date(),
+      };
+      
+      setMessages((prev) => {
+        const newMessages = [...prev, userMessage];
+        // 自动发送消息
+        setIsLoading(true);
+        sendChatMessage(newMessages, {
+          currentPage: getCurrentPageName(),
+          analysisData: currentAnalysis ?? undefined,
+        })
+          .then((response) => {
+            const assistantMessage: ChatMessage = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: response,
+              timestamp: new Date(),
+            };
+            setMessages((prevMessages) => [...prevMessages, assistantMessage]);
+          })
+          .catch((error) => {
+            console.error('Failed to send message:', error);
+            const errorMessage: ChatMessage = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: '抱歉，发送消息时出现错误。请稍后重试。',
+              timestamp: new Date(),
+            };
+            setMessages((prevMessages) => [...prevMessages, errorMessage]);
+          })
+          .finally(() => {
+            setIsLoading(false);
+          });
+        return newMessages;
+      });
+      clearChatbotInitialText();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatbotOpenTrigger]);
 
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading) return;

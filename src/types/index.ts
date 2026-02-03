@@ -6,6 +6,15 @@ export interface Product {
   category: string;
 }
 
+// 季度指标数据
+export interface QuarterlyIndicator {
+  period: string; // 季度，如 "2024-Q1"
+  moleculeShare: number;
+  moleculeInternalShare: number;
+  competitorShare: number;
+  deLimitRate: number;
+}
+
 // 产品表现数据
 export interface ProductPerformance {
   productId: string;
@@ -24,6 +33,8 @@ export interface ProductPerformance {
   // 时间维度
   period: string; // 季度，如 "2024-Q1"
   previousPeriod: string; // 上一季度
+  // 历史季度数据（近4个季度）
+  quarterlyData?: QuarterlyIndicator[];
 }
 
 // 风险预警

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles, Edit2, Save, X, GripVertical, Trash2, MessageSquare } from 'lucide-react';
+import { Sparkles, Edit2, Save, X, GripVertical, Trash2, MessageSquare, AlertCircle } from 'lucide-react';
 import { BonusPackage } from '../../types/bonus';
 import { TEN_BRANDS, initialBonusPackages, availableIndicators, mockBrandIndicators } from '../../data/bonusMockData';
 import { understandStrategyAndAdjust } from '../../services/bonusService';
@@ -70,6 +70,7 @@ export default function BonusRatioSuggestion() {
   const [showChat, setShowChat] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // 计算总奖金包
@@ -359,6 +360,66 @@ export default function BonusRatioSuggestion() {
     return null;
   };
 
+  // 验证奖金包数据
+  const validateBonusPackages = (): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    const allColumns = getAllColumns().filter((col) => !col.colspan);
+    
+    // 检查1: 所有列的总奖金包之和是否等于100%
+    const totalSum = bonusPackages.reduce((sum, pkg) => {
+      if (pkg.subBrandPackages) {
+        return sum + pkg.subBrandPackages.reduce((subSum, sub) => subSum + sub.totalRatio, 0);
+      }
+      return sum + pkg.totalRatio;
+    }, 0);
+    
+    if (Math.abs(totalSum - 100) > 0.1) {
+      errors.push(`所有品牌的总奖金包之和为 ${totalSum.toFixed(1)}%，不等于100%。请调整使总和为100%。`);
+    }
+    
+    // 检查2: 每一列的过程指标+结果指标之和是否等于该列的总奖金包
+    allColumns.forEach((col) => {
+      const pkg = getBrandPackage(col.brandId, col.subBrandName);
+      if (!pkg) return;
+      
+      const resultSum = pkg.resultIndicators.reduce((sum, ind) => sum + ind.ratio, 0);
+      const processSum = pkg.processIndicators.reduce((sum, ind) => sum + ind.ratio, 0);
+      const indicatorSum = resultSum + processSum;
+      const totalRatio = pkg.totalRatio;
+      
+      if (Math.abs(indicatorSum - totalRatio) > 0.1) {
+        const brandDisplayName = col.subBrandName ? `${col.brandName}(${col.subBrandName})` : col.brandName;
+        errors.push(
+          `${brandDisplayName}：总奖金包为 ${totalRatio.toFixed(1)}%，但结果指标(${resultSum.toFixed(1)}%) + 过程指标(${processSum.toFixed(1)}%) = ${indicatorSum.toFixed(1)}%，两者不相等。请调整使指标总和等于总奖金包。`
+        );
+      }
+    });
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
+  };
+
+  // 处理保存
+  const handleSave = () => {
+    const validation = validateBonusPackages();
+    if (!validation.isValid) {
+      setValidationError(validation.errors.join('\n\n'));
+      return;
+    }
+    
+    // 验证通过，关闭编辑模式
+    setIsEditing(false);
+    setValidationError(null);
+  };
+
+  // 处理取消
+  const handleCancel = () => {
+    setIsEditing(false);
+    setValidationError(null);
+  };
+
   // 处理自然语言交互
   const handleChatSubmit = async () => {
     if (!chatInput.trim()) return;
@@ -588,6 +649,40 @@ export default function BonusRatioSuggestion() {
 
   return (
     <div className="space-y-6">
+      {/* 验证错误弹窗 */}
+      {validationError && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-start space-x-3 mb-4">
+                <div className="flex-shrink-0">
+                  <AlertCircle className="w-6 h-6 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">数据验证失败</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    检测到以下问题，请修正后重新保存：
+                  </p>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <pre className="text-sm text-red-800 whitespace-pre-wrap font-sans">
+                      {validationError}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setValidationError(null)}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                >
+                  我知道了
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 功能说明 */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start justify-between">
@@ -632,14 +727,14 @@ export default function BonusRatioSuggestion() {
           {isEditing && (
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => setIsEditing(false)}
+                onClick={handleSave}
                 className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
                 <Save className="w-4 h-4" />
                 <span>保存</span>
               </button>
               <button
-                onClick={() => setIsEditing(false)}
+                onClick={handleCancel}
                 className="flex items-center space-x-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
               >
                 <X className="w-4 h-4" />

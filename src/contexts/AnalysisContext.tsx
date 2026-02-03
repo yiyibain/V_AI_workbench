@@ -14,6 +14,11 @@ interface AnalysisContextType {
   refreshTrigger: number; // 用于触发重新渲染
   markNeedsRefresh: (key: string) => void;
   clearNeedsRefresh: (key: string) => void;
+  // Chatbot控制
+  openChatbotWithText: (text: string) => void;
+  chatbotInitialText: string | null;
+  chatbotOpenTrigger: number;
+  clearChatbotInitialText: () => void;
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
@@ -23,6 +28,8 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   const [analysisCache, setAnalysisCache] = useState<Map<string, AIAnalysis>>(new Map());
   const [needsRefresh, setNeedsRefresh] = useState<Set<string>>(new Set());
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [chatbotInitialText, setChatbotInitialText] = useState<string | null>(null);
+  const [chatbotOpenTrigger, setChatbotOpenTrigger] = useState(0);
 
   const getCachedAnalysis = useCallback((key: string): AIAnalysis | null => {
     return analysisCache.get(key) || null;
@@ -61,6 +68,11 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const openChatbotWithText = useCallback((text: string) => {
+    setChatbotInitialText(text);
+    setChatbotOpenTrigger((prev) => prev + 1);
+  }, []);
+
   return (
     <AnalysisContext.Provider
       value={{
@@ -74,6 +86,10 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         refreshTrigger,
         markNeedsRefresh,
         clearNeedsRefresh,
+        openChatbotWithText,
+        chatbotInitialText,
+        chatbotOpenTrigger,
+        clearChatbotInitialText: () => setChatbotInitialText(null),
       }}
     >
       {children}

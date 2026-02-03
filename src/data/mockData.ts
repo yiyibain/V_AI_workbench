@@ -26,6 +26,12 @@ export const mockProductPerformance: ProductPerformance[] = [
     deLimitRateChange: -5.2, // 风险：解限率下降
     period: '2024-Q1',
     previousPeriod: '2023-Q4',
+    quarterlyData: [
+      { period: '2023-Q2', moleculeShare: 32.8, moleculeInternalShare: 31.2, competitorShare: 44.0, deLimitRate: 83.2 },
+      { period: '2023-Q3', moleculeShare: 33.5, moleculeInternalShare: 30.5, competitorShare: 44.5, deLimitRate: 82.8 },
+      { period: '2023-Q4', moleculeShare: 33.1, moleculeInternalShare: 31.7, competitorShare: 44.3, deLimitRate: 83.7 },
+      { period: '2024-Q1', moleculeShare: 35.2, moleculeInternalShare: 28.5, competitorShare: 45.8, deLimitRate: 78.5 },
+    ],
   },
   {
     productId: 'p2',
@@ -41,6 +47,12 @@ export const mockProductPerformance: ProductPerformance[] = [
     deLimitRateChange: 3.5,
     period: '2024-Q1',
     previousPeriod: '2023-Q4',
+    quarterlyData: [
+      { period: '2023-Q2', moleculeShare: 40.2, moleculeInternalShare: 36.5, competitorShare: 36.8, deLimitRate: 81.2 },
+      { period: '2023-Q3', moleculeShare: 40.8, moleculeInternalShare: 37.2, competitorShare: 36.0, deLimitRate: 82.5 },
+      { period: '2023-Q4', moleculeShare: 40.5, moleculeInternalShare: 36.8, competitorShare: 36.4, deLimitRate: 81.7 },
+      { period: '2024-Q1', moleculeShare: 42.3, moleculeInternalShare: 38.9, competitorShare: 35.2, deLimitRate: 85.2 },
+    ],
   },
   {
     productId: 'p3',
@@ -56,6 +68,12 @@ export const mockProductPerformance: ProductPerformance[] = [
     deLimitRateChange: 1.8,
     period: '2024-Q1',
     previousPeriod: '2023-Q4',
+    quarterlyData: [
+      { period: '2023-Q2', moleculeShare: 31.0, moleculeInternalShare: 30.5, competitorShare: 40.5, deLimitRate: 80.2 },
+      { period: '2023-Q3', moleculeShare: 31.5, moleculeInternalShare: 30.0, competitorShare: 40.8, deLimitRate: 80.8 },
+      { period: '2023-Q4', moleculeShare: 31.3, moleculeInternalShare: 30.3, competitorShare: 40.2, deLimitRate: 80.7 },
+      { period: '2024-Q1', moleculeShare: 32.5, moleculeInternalShare: 28.8, competitorShare: 42.3, deLimitRate: 82.5 },
+    ],
   },
   {
     productId: 'p4',
@@ -71,6 +89,12 @@ export const mockProductPerformance: ProductPerformance[] = [
     deLimitRateChange: 2.3,
     period: '2024-Q1',
     previousPeriod: '2023-Q4',
+    quarterlyData: [
+      { period: '2023-Q2', moleculeShare: 23.2, moleculeInternalShare: 20.8, competitorShare: 49.8, deLimitRate: 72.5 },
+      { period: '2023-Q3', moleculeShare: 23.8, moleculeInternalShare: 21.2, competitorShare: 49.5, deLimitRate: 73.2 },
+      { period: '2023-Q4', moleculeShare: 23.3, moleculeInternalShare: 20.5, competitorShare: 49.7, deLimitRate: 72.9 },
+      { period: '2024-Q1', moleculeShare: 25.8, moleculeInternalShare: 22.3, competitorShare: 48.5, deLimitRate: 75.2 },
+    ],
   },
   {
     productId: 'p5',
@@ -86,6 +110,12 @@ export const mockProductPerformance: ProductPerformance[] = [
     deLimitRateChange: -3.2,
     period: '2024-Q1',
     previousPeriod: '2023-Q4',
+    quarterlyData: [
+      { period: '2023-Q2', moleculeShare: 19.8, moleculeInternalShare: 17.8, competitorShare: 52.5, deLimitRate: 71.8 },
+      { period: '2023-Q3', moleculeShare: 19.5, moleculeInternalShare: 17.5, competitorShare: 53.2, deLimitRate: 71.2 },
+      { period: '2023-Q4', moleculeShare: 19.7, moleculeInternalShare: 17.7, competitorShare: 53.0, deLimitRate: 71.7 },
+      { period: '2024-Q1', moleculeShare: 18.5, moleculeInternalShare: 15.2, competitorShare: 55.8, deLimitRate: 68.5 },
+    ],
   },
   {
     productId: 'p6',
@@ -101,6 +131,12 @@ export const mockProductPerformance: ProductPerformance[] = [
     deLimitRateChange: 1.2,
     period: '2024-Q1',
     previousPeriod: '2023-Q4',
+    quarterlyData: [
+      { period: '2023-Q2', moleculeShare: 21.5, moleculeInternalShare: 19.2, competitorShare: 50.8, deLimitRate: 71.2 },
+      { period: '2023-Q3', moleculeShare: 21.8, moleculeInternalShare: 19.0, competitorShare: 51.2, deLimitRate: 71.8 },
+      { period: '2023-Q4', moleculeShare: 21.5, moleculeInternalShare: 19.0, competitorShare: 50.7, deLimitRate: 71.6 },
+      { period: '2024-Q1', moleculeShare: 22.3, moleculeInternalShare: 18.5, competitorShare: 52.2, deLimitRate: 72.8 },
+    ],
   },
 ];
 

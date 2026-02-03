@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ProductPerformance, AIAnalysis, RiskAlert } from '../types';
+import { ProductPerformance, AIAnalysis, RiskAlert, QuarterlyIndicator } from '../types';
 import { analyzeProductPerformance } from '../services/aiService';
 import { useAnalysis } from '../contexts/AnalysisContext';
-import { AlertTriangle, TrendingDown, TrendingUp, Loader2, ChevronDown, ChevronUp, RefreshCw, Target } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AlertTriangle, TrendingDown, TrendingUp, Loader2, ChevronDown, ChevronUp, RefreshCw, Target, X } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import DataInterpretation from './DataInterpretation';
 
 interface ProductDiagnosisProps {
@@ -15,6 +15,7 @@ export default function ProductDiagnosis({ product }: ProductDiagnosisProps) {
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['data-summary']));
+  const [selectedIndicator, setSelectedIndicator] = useState<string | null>('moleculeShare');
   const {
     setCurrentAnalysis,
     getCachedAnalysis,
@@ -107,23 +108,82 @@ export default function ProductDiagnosis({ product }: ProductDiagnosisProps) {
       name: '分子式份额',
       value: product.moleculeShare,
       change: product.moleculeShareChange,
+      key: 'moleculeShare',
     },
     {
       name: '分子式内份额',
       value: product.moleculeInternalShare,
       change: product.moleculeInternalShareChange,
+      key: 'moleculeInternalShare',
     },
     {
       name: '竞品份额',
       value: product.competitorShare,
       change: product.competitorShareChange,
+      key: 'competitorShare',
     },
     {
       name: '解限率',
       value: product.deLimitRate,
       change: product.deLimitRateChange,
+      key: 'deLimitRate',
     },
   ];
+
+  // 处理指标点击
+  const handleIndicatorClick = (indicatorKey: string) => {
+    setSelectedIndicator(indicatorKey);
+  };
+
+  // 获取季度数据
+  const getQuarterlyData = (indicatorKey: string) => {
+    if (!product.quarterlyData || product.quarterlyData.length === 0) {
+      return null;
+    }
+
+    const quarterlyData = product.quarterlyData.map((q, index) => {
+      let value = 0;
+      let change = 0;
+      
+      switch (indicatorKey) {
+        case 'moleculeShare':
+          value = q.moleculeShare;
+          if (index > 0) {
+            change = q.moleculeShare - product.quarterlyData![index - 1].moleculeShare;
+          }
+          break;
+        case 'moleculeInternalShare':
+          value = q.moleculeInternalShare;
+          if (index > 0) {
+            change = q.moleculeInternalShare - product.quarterlyData![index - 1].moleculeInternalShare;
+          }
+          break;
+        case 'competitorShare':
+          value = q.competitorShare;
+          if (index > 0) {
+            change = q.competitorShare - product.quarterlyData![index - 1].competitorShare;
+          }
+          break;
+        case 'deLimitRate':
+          value = q.deLimitRate;
+          if (index > 0) {
+            change = q.deLimitRate - product.quarterlyData![index - 1].deLimitRate;
+          }
+          break;
+      }
+
+      return {
+        period: q.period,
+        value,
+        change,
+      };
+    });
+
+    return quarterlyData;
+  };
+
+  const selectedIndicatorData = selectedIndicator ? chartData.find(d => d.key === selectedIndicator) : null;
+  const quarterlyData = selectedIndicator ? getQuarterlyData(selectedIndicator) : null;
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -178,52 +238,115 @@ export default function ProductDiagnosis({ product }: ProductDiagnosisProps) {
               label="分子式份额"
               value={`${product.moleculeShare}%`}
               change={product.moleculeShareChange}
+              indicatorKey="moleculeShare"
+              onClick={() => handleIndicatorClick('moleculeShare')}
             />
             <MetricCard
               label="分子式内份额"
               value={`${product.moleculeInternalShare}%`}
               change={product.moleculeInternalShareChange}
+              indicatorKey="moleculeInternalShare"
+              onClick={() => handleIndicatorClick('moleculeInternalShare')}
             />
             <MetricCard
               label="竞品份额"
               value={`${product.competitorShare}%`}
               change={product.competitorShareChange}
+              indicatorKey="competitorShare"
+              onClick={() => handleIndicatorClick('competitorShare')}
             />
             <MetricCard
               label="解限率"
               value={`${product.deLimitRate}%`}
               change={product.deLimitRateChange}
+              indicatorKey="deLimitRate"
+              onClick={() => handleIndicatorClick('deLimitRate')}
             />
           </div>
 
           {/* 数据可视化 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-4">份额对比</h4>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#0ea5e9" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+          {!selectedIndicator ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-4">份额对比</h4>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#0ea5e9" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
 
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-4">变化趋势</h4>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="change" fill="#10b981" />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-4">变化趋势</h4>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="change" fill="#10b981">
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.change > 0 ? '#ef4444' : '#10b981'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-semibold text-gray-700">
+                  {selectedIndicatorData?.name} - 近4个季度数据
+                </h4>
+                <button
+                  onClick={() => setSelectedIndicator(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              {quarterlyData && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h5 className="text-xs font-semibold text-gray-600 mb-3 text-center">季度数值</h5>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={quarterlyData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="period" tick={{ fontSize: 11 }} />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="value" fill="#0ea5e9" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-semibold text-gray-600 mb-3 text-center">季度变化量</h5>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={quarterlyData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="period" tick={{ fontSize: 11 }} />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="change" fill="#10b981">
+                          {quarterlyData.map((entry, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={entry.change > 0 ? '#ef4444' : entry.change < 0 ? '#10b981' : '#94a3b8'} 
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 风险预警 - 基于数据计算，不等待AI */}
           {(() => {
@@ -302,26 +425,6 @@ export default function ProductDiagnosis({ product }: ProductDiagnosisProps) {
             ) : null;
           })()}
 
-          {/* AI关键发现 - 等待AI分析完成 */}
-          {loading && (
-            <div className="flex items-center justify-center py-4 border border-gray-200 rounded-lg bg-gray-50">
-              <Loader2 className="w-5 h-5 animate-spin text-primary-600 mr-2" />
-              <span className="text-sm text-gray-600">AI分析中，即将生成关键发现...</span>
-            </div>
-          )}
-          {analysis && analysis.keyFindings.length > 0 && (
-            <div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-3">AI关键发现</h4>
-              <ul className="space-y-2">
-                {analysis.keyFindings.map((finding, index) => (
-                  <li key={index} className="flex items-start text-sm text-gray-700">
-                    <span className="text-primary-600 mr-2">•</span>
-                    <span>{finding}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       </Section>
 
@@ -339,12 +442,28 @@ export default function ProductDiagnosis({ product }: ProductDiagnosisProps) {
 }
 
 // 指标卡片组件
-function MetricCard({ label, value, change }: { label: string; value: string; change: number }) {
+function MetricCard({ 
+  label, 
+  value, 
+  change, 
+  indicatorKey,
+  onClick 
+}: { 
+  label: string; 
+  value: string; 
+  change: number;
+  indicatorKey?: string;
+  onClick?: () => void;
+}) {
   const isPositive = change > 0;
   const isNegative = change < 0;
 
   return (
-    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+    <div 
+      className={`bg-gray-50 rounded-lg p-4 border border-gray-200 ${onClick ? 'cursor-pointer hover:bg-gray-100 hover:border-primary-300 transition-all' : ''}`}
+      onClick={onClick}
+      title={onClick ? '点击查看近4个季度数据' : undefined}
+    >
       <div className="text-xs text-gray-500 mb-1">{label}</div>
       <div className="text-2xl font-bold text-gray-900 mb-2">{value}</div>
       <div className="flex items-center text-sm">

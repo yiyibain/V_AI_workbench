@@ -12,11 +12,10 @@ export default function Layout({ children }: LayoutProps) {
 
   const navItems = [
     { path: '/', label: '首页', icon: LayoutDashboard },
-    { path: '/product-analysis', label: '产品表现分析', icon: FileText },
-    { path: '/province-analysis', label: '省份表现对比', icon: BarChart3 },
+    { path: '/product-analysis', label: '业务回顾', icon: FileText },
     { path: '/strategy-planning', label: '策略辅助', icon: Settings },
     { path: '/indicator-planning', label: '指标规划', icon: Target },
-    { path: '/bonus-setting', label: '奖金设置', icon: DollarSign },
+    { path: '/bonus-setting', label: '奖金规划', icon: DollarSign },
   ];
 
   return (

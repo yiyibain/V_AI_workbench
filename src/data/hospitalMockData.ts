@@ -112,6 +112,8 @@ export function generateProvinceDetailData(
 
   // 计算解限率变化（模拟数据）
   const deLimitRateChange = (Math.random() - 0.6) * 10; // 更可能下降
+  // 计算市场份额变化（模拟数据）
+  const marketShareChange = (Math.random() - 0.5) * 3; // -1.5% 到 +1.5%
 
   return {
     ...province,
@@ -128,6 +130,7 @@ export function generateProvinceDetailData(
           highPotentialHospitals.length
         : 0,
     deLimitRateChange,
+    marketShareChange,
   };
 }
 

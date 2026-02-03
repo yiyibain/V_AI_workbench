@@ -29,12 +29,14 @@ export interface ProvinceDetailPerformance extends ProvincePerformance {
   coreHospitalAvgPenetration: number;
   highPotentialHospitalAvgPenetration: number;
   deLimitRateChange?: number; // 解限率变化（可选，用于计算）
+  marketShareChange?: number; // 市场份额变化（可选，用于计算）
 }
 
 // 异常值发现
 export interface AnomalyFinding {
   id: string;
   type: 'province' | 'hospital' | 'indicator';
+  category: 'national' | 'province'; // 全国共性或部分省份预警
   severity: 'high' | 'medium' | 'low';
   title: string;
   description: string;
@@ -54,6 +56,26 @@ export interface AnomalyFinding {
     source: string;
     value: string | number;
   }[];
+  // 合并原因深挖的内容
+  possibleCauses?: {
+    cause: string;
+    evidence: {
+      type: 'data' | 'external' | 'internal';
+      source: string;
+      description: string;
+      dataPoint?: string;
+    }[];
+    confidence: 'high' | 'medium' | 'low';
+  }[];
+  // 合并风险点提炼的内容
+  riskImplications?: {
+    riskLevel: 'high' | 'medium' | 'low';
+    riskDescription: string;
+    suggestedActions: {
+      shortTerm: string[];
+      longTerm: string[];
+    };
+  };
 }
 
 // 原因深挖

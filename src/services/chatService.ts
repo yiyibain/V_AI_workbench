@@ -211,3 +211,4 @@ function generateMockResponse(userMessage: string): string {
 }
 
 
+
