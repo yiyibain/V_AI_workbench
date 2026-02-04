@@ -119,7 +119,7 @@ export default function OpportunityAnalysis() {
           analysis: generateMockAnalysis(dim, selectedOpportunity),
           evidence: generateMockEvidence(dim),
         })),
-        strategyDirections: generateMockStrategyDirections(selectedOpportunity),
+        strategyDirections: generateMockStrategyDirections(),
         createdAt: new Date(),
       });
       setIsAnalyzing(false);
@@ -144,7 +144,7 @@ export default function OpportunityAnalysis() {
     ];
   };
 
-  const generateMockStrategyDirections = (_opp: Opportunity): any[] => {
+  const generateMockStrategyDirections = (): any[] => { // eslint-disable-line @typescript-eslint/no-explicit-any
     return [
       {
         id: 'sd1',
@@ -182,16 +182,6 @@ export default function OpportunityAnalysis() {
     ];
   };
 
-  const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      product: 'bg-blue-100 text-blue-800',
-      businessModel: 'bg-green-100 text-green-800',
-      resource: 'bg-yellow-100 text-yellow-800',
-      organization: 'bg-purple-100 text-purple-800',
-      other: 'bg-gray-100 text-gray-800',
-    };
-    return colors[category] || 'bg-gray-100 text-gray-800';
-  };
 
   const getLogicLabel = (logic: string) => {
     const labels: Record<string, string> = {
@@ -494,9 +484,6 @@ export default function OpportunityAnalysis() {
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
                       <span className="font-medium text-gray-900">{dim.name}</span>
-                      <span className={clsx('text-xs px-2 py-1 rounded', getCategoryColor(dim.category))}>
-                        {dim.category}
-                      </span>
                       {dim.isUserAdded && (
                         <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-700">用户添加</span>
                       )}
@@ -549,9 +536,6 @@ export default function OpportunityAnalysis() {
                     <div key={index} className="border-l-4 border-primary-500 pl-4">
                       <div className="flex items-center space-x-2 mb-2">
                         <span className="font-medium text-gray-900">{reason.dimension.name}</span>
-                        <span className={clsx('text-xs px-2 py-1 rounded', getCategoryColor(reason.dimension.category))}>
-                          {reason.dimension.category}
-                        </span>
                       </div>
                       <p className="text-sm text-gray-700 mb-2">{reason.analysis}</p>
                       <div className="space-y-1">

@@ -154,7 +154,7 @@ export default function MekkoChart({
   // 计算CAGR和增速的辅助函数
   const calculateMetrics = useMemo(() => {
     if (!marketData.length || !selectedXAxisKey || !selectedYAxisKey || !getDimensionValue) {
-      return (_xAxisValue: string, _yAxisValue: string) => ({ cagr1924: null, growth2324: null });
+      return () => ({ cagr1924: null, growth2324: null });
     }
 
     // 找到年份维度（从availableDimensions中查找）

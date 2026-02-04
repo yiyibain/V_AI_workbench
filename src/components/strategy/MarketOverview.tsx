@@ -257,24 +257,19 @@ export default function MarketOverview() {
 
     // 第一步：按X轴维度分组，计算每个X轴维度的总金额
     const xAxisGroups = new Map<string, number>();
-    let validXAxisCount = 0;
-    let invalidXAxisCount = 0;
     filtered.forEach((point) => {
       const xValue = getDimensionValue(point, selectedXAxisKey);
       if (!xValue || xValue.trim() === '') {
-        invalidXAxisCount++;
         return;
       }
       // 过滤掉以"_英文"结尾的维度
       if (xValue.endsWith('_英文')) {
-        invalidXAxisCount++;
         return;
       }
       
       const pointValue = point.value || 0;
       if (pointValue > 0) {
         xAxisGroups.set(xValue, (xAxisGroups.get(xValue) || 0) + pointValue);
-        validXAxisCount++;
       }
     });
 
@@ -329,37 +324,17 @@ export default function MarketOverview() {
       }>;
     }> = [];
 
-    // 调试：检查第一个X轴值的Y轴数据
-    const firstXAxisValue = Array.from(xAxisGroups.keys())[0];
-    let debugYAxisCount = 0;
-    let debugYAxisEmptyCount = 0;
-    if (firstXAxisValue) {
-      filtered.forEach((point) => {
-        const xValue = getDimensionValue(point, selectedXAxisKey);
-        const yValue = getDimensionValue(point, selectedYAxisKey);
-        if (xValue === firstXAxisValue) {
-          if (yValue && yValue.trim() !== '') {
-            debugYAxisCount++;
-          } else {
-            debugYAxisEmptyCount++;
-          }
-        }
-      });
-      // console.log('🔍 调试第一个X轴值的Y轴数据:', {
-      //   xAxisValue: firstXAxisValue,
-      //   totalPoints: filtered.filter(p => getDimensionValue(p, selectedXAxisKey) === firstXAxisValue).length,
-      //   yAxisWithValue: debugYAxisCount,
-      //   yAxisEmpty: debugYAxisEmptyCount,
-      //   sampleYValues: filtered
-      //     .filter(p => {
-      //       const x = getDimensionValue(p, selectedXAxisKey);
-      //       const y = getDimensionValue(p, selectedYAxisKey);
-      //       return x === firstXAxisValue && y && y.trim() !== '';
-      //     })
-      //     .slice(0, 5)
-      //     .map(p => getDimensionValue(p, selectedYAxisKey)),
-      // });
-    }
+    // 调试：检查第一个X轴值的Y轴数据（已禁用）
+    // const firstXAxisValue = Array.from(xAxisGroups.keys())[0];
+    // if (firstXAxisValue) {
+    //   filtered.forEach((point) => {
+    //     const xValue = getDimensionValue(point, selectedXAxisKey);
+    //     const yValue = getDimensionValue(point, selectedYAxisKey);
+    //     if (xValue === firstXAxisValue) {
+    //       // 调试逻辑
+    //     }
+    //   });
+    // }
 
     xAxisGroups.forEach((xAxisTotalValue, xAxisValue) => {
       // 计算该X轴维度占总市场的百分比（决定柱子宽度）
@@ -367,8 +342,6 @@ export default function MarketOverview() {
 
       // 在该X轴维度内，按Y轴维度分组
       const yAxisGroups = new Map<string, number>();
-      let yAxisMatchedCount = 0;
-      let yAxisUnmatchedCount = 0;
       
       filtered.forEach((point) => {
         const xValue = getDimensionValue(point, selectedXAxisKey);
@@ -380,12 +353,7 @@ export default function MarketOverview() {
             const pointValue = point.value || 0;
             if (pointValue > 0) {
               yAxisGroups.set(yValue, (yAxisGroups.get(yValue) || 0) + pointValue);
-              yAxisMatchedCount++;
-            } else {
-              yAxisUnmatchedCount++;
             }
-          } else {
-            yAxisUnmatchedCount++;
           }
         }
       });

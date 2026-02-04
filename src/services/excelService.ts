@@ -3,8 +3,10 @@ import { MarketDataPoint, DimensionConfig } from '../types/strategy';
 
 /**
  * 读取Excel文件并提取数据
+ * @param filePath 文件路径
+ * @param filterByValue 是否只保留value > 0的数据（默认true，对于数据库文件应设为false）
  */
-export async function readExcelFile(filePath: string): Promise<{
+export async function readExcelFile(filePath: string, filterByValue: boolean = true): Promise<{
   data: MarketDataPoint[];
   columns: string[];
   dimensionConfigs: DimensionConfig[];
@@ -54,7 +56,7 @@ export async function readExcelFile(filePath: string): Promise<{
     console.log(`📊 文件大小: ${fileSizeMB.toFixed(2)}MB`);
     
     // 根据文件大小决定读取策略
-    let readOptions: any = {
+    const readOptions: any = {
       type: 'array' as const,
       cellDates: false,
       cellNF: false,
@@ -358,8 +360,9 @@ export async function readExcelFile(filePath: string): Promise<{
         }
       }
       
-      // 只添加有有效值的数据点
-      if (dataPoint.value > 0) {
+      // 根据参数决定是否过滤value=0的数据
+      // 对于数据库文件（如全国及分省分销.xlsx），不过滤，因为可能包含WD等指标数据
+      if (!filterByValue || dataPoint.value > 0) {
         data.push(dataPoint as MarketDataPoint);
       }
     }

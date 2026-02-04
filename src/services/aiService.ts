@@ -205,7 +205,8 @@ export async function analyzeProvincePerformance(
 }
 
 // 辅助函数：提取关键发现
-function extractKeyFindings(_response: string, data: any): string[] {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractKeyFindings(_response: string, data: any): string[] { // eslint-disable-line @typescript-eslint/no-unused-vars
   const findings: string[] = [];
   
   if (data.moleculeInternalShareChange && data.moleculeInternalShareChange < -2) {
@@ -322,7 +323,7 @@ function extractReasons(response: string): string[] {
 }
 
 // 提取建议行动
-function extractSuggestedActions(_response: string) {
+function extractSuggestedActions(_response: string) { // eslint-disable-line @typescript-eslint/no-unused-vars
   return {
     problemBreakdown: [
       '分省份拆解数据，识别问题集中区域',
@@ -843,7 +844,7 @@ function findSegmentsByReasonType(
 function generateExplanation(
   reason: string,
   matchedKeywords: string[],
-  _segmentText: string
+  _segmentText: string // eslint-disable-line @typescript-eslint/no-unused-vars
 ): string {
   if (matchedKeywords.length === 1) {
     return `报告中提到"${matchedKeywords[0]}"相关内容，通过数据分析得出${reason}的结论。`;
@@ -853,7 +854,7 @@ function generateExplanation(
 }
 
 // 基于类型生成解释
-function generateTypeBasedExplanation(reason: string, _segmentText: string): string {
+function generateTypeBasedExplanation(reason: string, _segmentText: string): string { // eslint-disable-line @typescript-eslint/no-unused-vars
   if (reason.includes('准入') || reason.includes('解限')) {
     return `报告中的解限率和医院准入相关数据表明，${reason}是导致当前表现的重要因素。`;
   } else if (reason.includes('价格')) {

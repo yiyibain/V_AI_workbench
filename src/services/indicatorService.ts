@@ -352,6 +352,7 @@ export async function adjustIndicatorData(
   currentData: any,
   dataType: 'potentialIndicators' | 'effectAnalysis' | 'recommendations' | 'baseline' | 'targetPlan',
   conversationMessages: Array<{ role: 'user' | 'assistant'; content: string }>,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _context?: {
     strategyId?: string;
     indicatorId?: string;

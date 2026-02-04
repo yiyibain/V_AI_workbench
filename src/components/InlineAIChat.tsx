@@ -15,7 +15,7 @@ interface InlineAIChatProps {
 export default function InlineAIChat({
   selectedText,
   position,
-  context: _context, // 保留用于未来扩展
+  context: _context, // eslint-disable-line @typescript-eslint/no-unused-vars
   onClose,
 }: InlineAIChatProps) {
   const [chatMessages, setChatMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string; timestamp: Date }>>([]);
