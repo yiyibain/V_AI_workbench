@@ -9,6 +9,7 @@ import { analyzeScissorsGaps, analyzeProblemsAndStrategies } from '../../service
 
 export default function MarketOverview() {
   const [selectedBrand, setSelectedBrand] = useState<string>('立普妥');
+  const [selectedYear, setSelectedYear] = useState<string>('2024'); // 年份筛选，写死2024
   const [filters, setFilters] = useState<{
     province?: string[];
     channel?: string[];
@@ -23,7 +24,17 @@ export default function MarketOverview() {
   
   // 获取维度值的辅助函数
   const getDimensionValue = (point: MarketDataPoint, dimensionKey: string): string => {
-    return (point[dimensionKey] as string) || '';
+    const value = point[dimensionKey];
+    if (value === undefined || value === null) {
+      return '';
+    }
+    // 转换为字符串并去除首尾空格
+    const strValue = String(value).trim();
+    // 过滤掉空字符串和"_英文"结尾的值
+    if (strValue === '' || strValue.endsWith('_英文')) {
+      return '';
+    }
+    return strValue;
   };
   
   // 从数据中提取渠道选项
@@ -53,22 +64,23 @@ export default function MarketOverview() {
   }, [marketData, availableDimensions]);
   
   useEffect(() => {
-    // 读取Excel文件
+    // 读取Excel文件 - Mekko图使用 dataset.xlsx 作为数据源
     const loadExcelData = async () => {
       try {
         setLoading(true);
         // 添加时间戳防止缓存
         const timestamp = new Date().getTime();
+        // Mekko图数据源：使用 dataset.xlsx
         const excelPath = `/dataset.xlsx?t=${timestamp}`;
         
-        console.log('开始加载Excel文件:', excelPath);
+        // console.log('开始加载Excel文件:', excelPath);
         const result = await readExcelFile(excelPath);
         
-        console.log('Excel数据加载成功:', {
-          数据条数: result.data.length,
-          维度数量: result.dimensionConfigs.length,
-          维度列表: result.dimensionConfigs.map(d => d.label)
-        });
+        // console.log('Excel数据加载成功:', {
+        //   数据条数: result.data.length,
+        //   维度数量: result.dimensionConfigs.length,
+        //   维度列表: result.dimensionConfigs.map(d => d.label)
+        // });
         
         setMarketData(result.data);
         // 过滤掉以"_英文"结尾的维度
@@ -77,15 +89,78 @@ export default function MarketOverview() {
         );
         setAvailableDimensions(filteredDimensions);
         
-        // 设置默认的横纵轴
-        if (result.dimensionConfigs.length > 0) {
-          setSelectedXAxisKey(result.dimensionConfigs[0].key);
-          if (result.dimensionConfigs.length > 1) {
-            setSelectedYAxisKey(result.dimensionConfigs[1].key);
+        // console.log('📊 所有可用维度:', filteredDimensions.map(d => `${d.label} (${d.key})`));
+        
+        // 智能设置默认的横纵轴：只使用"活性成分"和"商品名"
+        let defaultXAxisKey: string | null = null;
+        let defaultYAxisKey: string | null = null;
+        
+        // 查找活性成分维度（可能是：活性成分、分子、molecule、通用名等）
+        const moleculeDim = filteredDimensions.find(d => {
+          const label = d.label.toLowerCase();
+          return label.includes('活性成分') || label.includes('分子') || 
+                 label.includes('molecule') || label.includes('通用名') ||
+                 label.includes('活性') || label.includes('成分');
+        });
+        
+        // 查找商品名维度（可能是：商品名、商品、产品名、产品等）
+        const productDim = filteredDimensions.find(d => {
+          const label = d.label.toLowerCase();
+          return label.includes('商品名') || label.includes('商品') || 
+                 label.includes('产品名') || label.includes('产品') ||
+                 label.includes('product') || label.includes('商品名称');
+        });
+        
+        // 如果找到了活性成分和商品名，使用它们（活性成分作为X轴，商品名作为Y轴）
+        if (moleculeDim && productDim) {
+          defaultXAxisKey = moleculeDim.key;
+          defaultYAxisKey = productDim.key;
+          // console.log('✅ 找到活性成分和商品名维度:', {
+          //   xAxis: moleculeDim.label,
+          //   yAxis: productDim.label
+          // });
+        } else {
+          // 如果找不到，使用默认逻辑（前两个可用维度）
+          if (filteredDimensions.length > 0) {
+            defaultXAxisKey = filteredDimensions[0].key;
+            if (filteredDimensions.length > 1) {
+              defaultYAxisKey = filteredDimensions[1].key;
+            }
           }
+          // console.log('⚠️ 未找到活性成分或商品名，使用默认维度:', {
+          //   xAxis: filteredDimensions[0]?.label || '未设置',
+          //   yAxis: filteredDimensions[1]?.label || '未设置'
+          // });
         }
+        
+        // 验证当前选择的维度是否仍然存在，如果不存在则重置
+        const currentXAxisExists = filteredDimensions.some(d => d.key === selectedXAxisKey);
+        const currentYAxisExists = filteredDimensions.some(d => d.key === selectedYAxisKey);
+        
+        // 设置X轴：优先使用新计算的默认值，如果当前选择的维度不存在则重置
+        if (defaultXAxisKey) {
+          setSelectedXAxisKey(defaultXAxisKey);
+        } else if (!currentXAxisExists && filteredDimensions.length > 0) {
+          // 如果当前X轴不存在且没有默认值，使用第一个可用维度
+          setSelectedXAxisKey(filteredDimensions[0].key);
+        }
+        
+        // 设置Y轴：优先使用新计算的默认值，如果当前选择的维度不存在则重置
+        if (defaultYAxisKey) {
+          setSelectedYAxisKey(defaultYAxisKey);
+        } else if (!currentYAxisExists && filteredDimensions.length > 1) {
+          // 如果当前Y轴不存在且没有默认值，使用第二个可用维度
+          setSelectedYAxisKey(filteredDimensions[1].key);
+        }
+        
+        // console.log('🎯 最终选择的维度:', {
+        //   xAxis: defaultXAxisKey ? filteredDimensions.find(d => d.key === defaultXAxisKey)?.label : 
+        //          (currentXAxisExists ? filteredDimensions.find(d => d.key === selectedXAxisKey)?.label : '未设置'),
+        //   yAxis: defaultYAxisKey ? filteredDimensions.find(d => d.key === defaultYAxisKey)?.label : 
+        //          (currentYAxisExists ? filteredDimensions.find(d => d.key === selectedYAxisKey)?.label : '未设置'),
+        // });
       } catch (error) {
-        console.error('加载Excel数据失败:', error);
+        // console.error('加载Excel数据失败:', error);
         setMarketData([]);
         setAvailableDimensions([]);
       } finally {
@@ -113,9 +188,38 @@ export default function MarketOverview() {
   // 处理数据，生成Mekko图表所需格式
   // Mekko图：X轴维度作为柱子，柱子宽度代表总市场份额，柱子内部按Y轴维度堆叠，高度代表占比
   const mekkoData = useMemo(() => {
-    if (marketData.length === 0) return [];
+    if (marketData.length === 0) {
+      // console.log('❌ mekkoData: marketData为空');
+      return [];
+    }
+    
+    if (!selectedXAxisKey || !selectedYAxisKey) {
+      // console.log('❌ mekkoData: 维度未选择', { selectedXAxisKey, selectedYAxisKey });
+      return [];
+    }
+    
+    // console.log('🔄 开始计算mekkoData:', {
+    //   totalDataPoints: marketData.length,
+    //   xAxisKey: selectedXAxisKey,
+    //   yAxisKey: selectedYAxisKey,
+    //   xAxisLabel: availableDimensions.find(d => d.key === selectedXAxisKey)?.label,
+    //   yAxisLabel: availableDimensions.find(d => d.key === selectedYAxisKey)?.label,
+    // });
     
     let filtered = [...marketData];
+
+    // 应用年份筛选（默认2024）
+    const yearDim = availableDimensions.find(d => {
+      const label = d.label.toLowerCase();
+      return label.includes('年') || label.includes('year') || label === '年';
+    });
+    if (yearDim && selectedYear) {
+      filtered = filtered.filter((d) => {
+        const yearValue = getDimensionValue(d, yearDim.key);
+        return yearValue === selectedYear || String(yearValue) === String(selectedYear);
+      });
+      // console.log(`📅 应用年份筛选: ${selectedYear}, 筛选后数据量: ${filtered.length}`);
+    }
 
     // 应用渠道筛选
     if (filters.channel && filters.channel.length > 0) {
@@ -141,17 +245,77 @@ export default function MarketOverview() {
     // 计算总金额（用于计算百分比）
     const totalValue = filtered.reduce((sum, point) => sum + (point.value || 0), 0);
     
-    if (totalValue === 0) return [];
+    if (totalValue === 0) {
+      // console.log('❌ mekkoData: 过滤后总金额为0');
+      return [];
+    }
+
+    // console.log('💰 过滤后数据统计:', {
+    //   filteredCount: filtered.length,
+    //   totalValue: totalValue.toLocaleString('zh-CN'),
+    // });
 
     // 第一步：按X轴维度分组，计算每个X轴维度的总金额
     const xAxisGroups = new Map<string, number>();
+    let validXAxisCount = 0;
+    let invalidXAxisCount = 0;
     filtered.forEach((point) => {
       const xValue = getDimensionValue(point, selectedXAxisKey);
-      if (!xValue) return;
+      if (!xValue || xValue.trim() === '') {
+        invalidXAxisCount++;
+        return;
+      }
       // 过滤掉以"_英文"结尾的维度
-      if (xValue.endsWith('_英文')) return;
-      xAxisGroups.set(xValue, (xAxisGroups.get(xValue) || 0) + (point.value || 0));
+      if (xValue.endsWith('_英文')) {
+        invalidXAxisCount++;
+        return;
+      }
+      
+      const pointValue = point.value || 0;
+      if (pointValue > 0) {
+        xAxisGroups.set(xValue, (xAxisGroups.get(xValue) || 0) + pointValue);
+        validXAxisCount++;
+      }
     });
+
+    // console.log('📈 X轴维度分组结果:', {
+    //   uniqueXValues: xAxisGroups.size,
+    //   validPoints: validXAxisCount,
+    //   invalidPoints: invalidXAxisCount,
+    //   sampleXValues: Array.from(xAxisGroups.keys()).slice(0, 5),
+    // });
+
+    if (xAxisGroups.size === 0) {
+      // console.log('❌ mekkoData: X轴维度分组后无数据', {
+      //   selectedXAxisKey,
+      //   totalPoints: filtered.length,
+      //   validXAxisCount,
+      //   invalidXAxisCount,
+      // });
+      return [];
+    }
+
+    // 检查Y轴维度值是否存在
+    const yAxisValueSet = new Set<string>();
+    filtered.forEach((point) => {
+      const yValue = getDimensionValue(point, selectedYAxisKey);
+      if (yValue && yValue.trim() !== '' && !yValue.endsWith('_英文')) {
+        yAxisValueSet.add(yValue);
+      }
+    });
+    
+    // console.log('📊 Y轴维度值统计:', {
+    //   uniqueYValues: yAxisValueSet.size,
+    //   sampleYValues: Array.from(yAxisValueSet).slice(0, 10),
+    // });
+
+    if (yAxisValueSet.size === 0) {
+      // console.log('❌ mekkoData: Y轴维度没有有效值', {
+      //   selectedYAxisKey,
+      //   yAxisLabel: availableDimensions.find(d => d.key === selectedYAxisKey)?.label,
+      // });
+      return [];
+    }
 
     // 第二步：为每个X轴维度，按Y轴维度分组，计算占比
     const result: Array<{
@@ -165,19 +329,77 @@ export default function MarketOverview() {
       }>;
     }> = [];
 
+    // 调试：检查第一个X轴值的Y轴数据
+    const firstXAxisValue = Array.from(xAxisGroups.keys())[0];
+    let debugYAxisCount = 0;
+    let debugYAxisEmptyCount = 0;
+    if (firstXAxisValue) {
+      filtered.forEach((point) => {
+        const xValue = getDimensionValue(point, selectedXAxisKey);
+        const yValue = getDimensionValue(point, selectedYAxisKey);
+        if (xValue === firstXAxisValue) {
+          if (yValue && yValue.trim() !== '') {
+            debugYAxisCount++;
+          } else {
+            debugYAxisEmptyCount++;
+          }
+        }
+      });
+      // console.log('🔍 调试第一个X轴值的Y轴数据:', {
+      //   xAxisValue: firstXAxisValue,
+      //   totalPoints: filtered.filter(p => getDimensionValue(p, selectedXAxisKey) === firstXAxisValue).length,
+      //   yAxisWithValue: debugYAxisCount,
+      //   yAxisEmpty: debugYAxisEmptyCount,
+      //   sampleYValues: filtered
+      //     .filter(p => {
+      //       const x = getDimensionValue(p, selectedXAxisKey);
+      //       const y = getDimensionValue(p, selectedYAxisKey);
+      //       return x === firstXAxisValue && y && y.trim() !== '';
+      //     })
+      //     .slice(0, 5)
+      //     .map(p => getDimensionValue(p, selectedYAxisKey)),
+      // });
+    }
+
     xAxisGroups.forEach((xAxisTotalValue, xAxisValue) => {
       // 计算该X轴维度占总市场的百分比（决定柱子宽度）
       const xAxisTotalShare = (xAxisTotalValue / totalValue) * 100;
 
       // 在该X轴维度内，按Y轴维度分组
       const yAxisGroups = new Map<string, number>();
+      let yAxisMatchedCount = 0;
+      let yAxisUnmatchedCount = 0;
+      
       filtered.forEach((point) => {
         const xValue = getDimensionValue(point, selectedXAxisKey);
         const yValue = getDimensionValue(point, selectedYAxisKey);
-        if (xValue === xAxisValue && yValue) {
-          yAxisGroups.set(yValue, (yAxisGroups.get(yValue) || 0) + (point.value || 0));
+        
+        if (xValue === xAxisValue) {
+          // 检查Y轴值是否有效（非空且非"_英文"结尾）
+          if (yValue && yValue.trim() !== '' && !yValue.endsWith('_英文')) {
+            const pointValue = point.value || 0;
+            if (pointValue > 0) {
+              yAxisGroups.set(yValue, (yAxisGroups.get(yValue) || 0) + pointValue);
+              yAxisMatchedCount++;
+            } else {
+              yAxisUnmatchedCount++;
+            }
+          } else {
+            yAxisUnmatchedCount++;
+          }
         }
       });
+
+      // 调试：输出第一个X轴值的Y轴分组结果
+      // if (xAxisValue === firstXAxisValue) {
+      //   console.log('🔍 第一个X轴值的Y轴分组结果:', {
+      //     xAxisValue,
+      //     yAxisGroupsCount: yAxisGroups.size,
+      //     yAxisMatchedCount,
+      //     yAxisUnmatchedCount,
+      //     sampleYAxisValues: Array.from(yAxisGroups.keys()).slice(0, 5),
+      //   });
+      // }
 
       // 计算每个Y轴维度在该X轴维度中的占比
       const segments: Array<{
@@ -185,6 +407,17 @@ export default function MarketOverview() {
         value: number;
         share: number;
       }> = [];
+
+      // 如果该X轴维度下没有有效的Y轴数据，创建一个默认段（100%）
+      if (yAxisGroups.size === 0) {
+        // console.warn(`⚠️ X轴值"${xAxisValue}"下没有有效的Y轴数据，将显示为完整柱子`);
+        // 创建一个默认段，占100%
+        segments.push({
+          yAxisValue: '其他',
+          value: xAxisTotalValue,
+          share: 100,
+        });
+      }
 
       yAxisGroups.forEach((value, yAxisValue) => {
         const share = (value / xAxisTotalValue) * 100;
@@ -214,8 +447,22 @@ export default function MarketOverview() {
     // 按X轴总份额降序排序
     result.sort((a, b) => b.xAxisTotalShare - a.xAxisTotalShare);
 
+    // console.log('✅ mekkoData计算结果:', {
+    //   totalItems: result.length,
+    //   totalShare: result.reduce((sum, item) => sum + item.xAxisTotalShare, 0).toFixed(2) + '%',
+    //   sampleItem: result[0] ? {
+    //     xAxisValue: result[0].xAxisValue,
+    //     xAxisTotalValue: result[0].xAxisTotalValue,
+    //     segmentsCount: result[0].segments.length,
+    //     topSegment: result[0].segments[0] ? {
+    //       yAxisValue: result[0].segments[0].yAxisValue,
+    //       share: result[0].segments[0].share.toFixed(2) + '%',
+    //     } : null,
+    //   } : null,
+    // });
+
     return result;
-  }, [marketData, selectedXAxisKey, selectedYAxisKey, filters, availableDimensions]);
+  }, [marketData, selectedXAxisKey, selectedYAxisKey, filters, availableDimensions, selectedYear, getDimensionValue]);
 
 
   const handleDimensionChange = (axis: 'xAxis' | 'yAxis', dimensionKey: string) => {
@@ -261,7 +508,7 @@ export default function MarketOverview() {
 
   return (
     <div className="space-y-6">
-      {/* 品牌选择 */}
+      {/* 品牌选择和年份筛选 */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">选择品牌</label>
@@ -280,6 +527,24 @@ export default function MarketOverview() {
                 {brand}
               </button>
             ))}
+          </div>
+        </div>
+        
+        {/* 年份筛选 */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">选择年份</label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedYear('2024')}
+              className={clsx(
+                'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                selectedYear === '2024'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              )}
+            >
+              2024
+            </button>
           </div>
         </div>
         
@@ -386,7 +651,14 @@ export default function MarketOverview() {
         </div>
 
         {mekkoData.length > 0 ? (
-          <MekkoChart data={mekkoData} />
+          <MekkoChart 
+            data={mekkoData} 
+            marketData={marketData}
+            selectedXAxisKey={selectedXAxisKey}
+            selectedYAxisKey={selectedYAxisKey}
+            getDimensionValue={getDimensionValue}
+            availableDimensions={availableDimensions}
+          />
         ) : (
           <div className="flex items-center justify-center h-96">
             <p className="text-gray-500">暂无数据可显示</p>
@@ -449,21 +721,17 @@ function ProblemIdentification({
   const [aiAnalysisLoading, setAiAnalysisLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState<'gaps' | 'problems' | 'causes' | 'strategies' | null>(null);
   
-  // 步骤1：剪刀差
+  // 步骤1：剪刀差（第一步不包含possibleReasons）
   const [aiScissorsGaps, setAiScissorsGaps] = useState<Array<{
     title: string;
     phenomenon: string;
-    possibleReasons: string;
+    possibleReasons?: string; // 第一步不包含，第二步才添加
   }>>([]);
   const [editingGaps, setEditingGaps] = useState(false);
   const [newGapTitle, setNewGapTitle] = useState('');
   const [newGapPhenomenon, setNewGapPhenomenon] = useState('');
-  const [newGapReasons, setNewGapReasons] = useState('');
+  // 第一步不包含可能原因
   
-  // 步骤2：问题列表
-  const [aiProblems, setAiProblems] = useState<string[]>([]);
-  const [editingProblems, setEditingProblems] = useState(false);
-  const [newProblem, setNewProblem] = useState('');
   
   // 步骤3：成因分析
   const [aiCauses, setAiCauses] = useState<Array<{
@@ -634,40 +902,25 @@ function ProblemIdentification({
     return text;
   }, [gapAnalysis, selectedBrand, selectedXAxisKey, selectedYAxisKey, availableDimensions, competitorBrands, brandDimension]);
 
-  // 3. 生成优化建议
-  const optimizationSuggestions = useMemo(() => {
-    if (gapAnalysis.length === 0) {
-      return [];
-    }
-
-    const suggestions: string[] = [];
-    const topGap = gapAnalysis[0];
-    const xAxisLabel = availableDimensions.find(d => d.key === selectedXAxisKey)?.label || '横轴维度';
-    const yAxisLabel = availableDimensions.find(d => d.key === selectedYAxisKey)?.label || '纵轴维度';
-
-    suggestions.push(`提升${xAxisLabel}为"${topGap.xAxisValue}"、${yAxisLabel}为"${topGap.yAxisValue}"细分市场中${selectedBrand}的分销水平和市场覆盖`);
-    
-    if (gapAnalysis.length > 1) {
-      const secondGap = gapAnalysis[1];
-      suggestions.push(`加强${xAxisLabel}为"${secondGap.xAxisValue}"、${yAxisLabel}为"${secondGap.yAxisValue}"细分市场的渠道建设和推广投入`);
-    }
-
-    return suggestions;
-  }, [gapAnalysis, selectedBrand, selectedXAxisKey, selectedYAxisKey, availableDimensions]);
 
   // 触发AI分析 - 只分析第一步
   const handleAIAnalysis = async () => {
+    console.log('🎯 用户点击AI智能分析按钮');
+    console.log('📊 数据检查 - mekkoData长度:', mekkoData.length, 'marketData长度:', marketData.length);
+    
     if (mekkoData.length === 0 || marketData.length === 0) {
       alert('请先确保有数据可分析');
       return;
     }
 
+    console.log('✅ 数据检查通过，开始AI分析');
     setAiAnalysisLoading(true);
     setShowAIAnalysis(true);
     setCurrentStep('gaps');
 
     try {
-      // 第一步：分析剪刀差（限制5条）
+      console.log('🎯 开始第一步：全面扫描数据，生成剪刀差');
+      // 第一步：全面扫描数据，生成剪刀差（AI会自动完成合并，最终输出10条）
       const gapsResult = await analyzeScissorsGaps(
         marketData,
         mekkoData,
@@ -675,13 +928,14 @@ function ProblemIdentification({
         selectedYAxisKey,
         availableDimensions,
         selectedBrand,
-        5 // 限制最多5条
+        10 // 最终输出10条（AI会先扫描生成更多，然后合并，最后输出10条）
       );
       
-      setAiScissorsGaps(gapsResult.scissorsGaps.slice(0, 5));
+      // AI已经完成了合并，直接显示最终结果
+      setAiScissorsGaps(gapsResult.scissorsGaps.slice(0, 10));
       setEditingGaps(true);
     } catch (error) {
-      console.error('AI分析失败:', error);
+      console.error('❌ AI分析失败:', error);
       alert('AI分析失败，请稍后重试');
     } finally {
       setAiAnalysisLoading(false);
@@ -696,61 +950,33 @@ function ProblemIdentification({
     }
     
     setEditingGaps(false);
-    setCurrentStep('problems');
+    setCurrentStep('causes'); // 进入第二步：深挖原因
     setAiAnalysisLoading(true);
 
     try {
-      // 第二步：分析问题列表（基于确认的剪刀差）
+      // 第二步：深挖背后原因（基于确认的剪刀差）
       const problemsResult = await analyzeProblemsAndStrategies(
         aiScissorsGaps,
         selectedBrand,
-        undefined,
-        5 // 限制最多5条问题
-      );
-      
-      setAiProblems(problemsResult.problems.slice(0, 5));
-      setEditingProblems(true);
-    } catch (error) {
-      console.error('问题分析失败:', error);
-      alert('问题分析失败，请稍后重试');
-    } finally {
-      setAiAnalysisLoading(false);
-    }
-  };
-
-  // 确认步骤2（问题列表）并进入步骤3
-  const handleConfirmProblems = async () => {
-    if (aiProblems.length === 0) {
-      alert('请至少保留一条问题');
-      return;
-    }
-    
-    setEditingProblems(false);
-    setCurrentStep('causes');
-    setAiAnalysisLoading(true);
-
-    try {
-      // 第三步：分析成因和策略（基于确认的问题列表）
-      const problemsResult = await analyzeProblemsAndStrategies(
-        aiScissorsGaps,
-        selectedBrand,
+        marketData,
+        availableDimensions,
         undefined,
         5,
-        aiProblems // 传入确认的问题列表
+        undefined // 不传入问题列表，直接基于剪刀差分析成因
       );
       
       setAiCauses(problemsResult.causes.slice(0, 5));
       setAiStrategies(problemsResult.strategies.slice(0, 5));
       setEditingCauses(true);
     } catch (error) {
-      console.error('成因分析失败:', error);
+      // console.error('成因分析失败:', error);
       alert('成因分析失败，请稍后重试');
     } finally {
       setAiAnalysisLoading(false);
     }
   };
 
-  // 确认步骤3（成因和策略）
+  // 确认步骤2（成因和策略）
   const handleConfirmCauses = () => {
     setEditingCauses(false);
     setEditingStrategies(false);
@@ -764,42 +990,23 @@ function ProblemIdentification({
 
   // 添加剪刀差条目
   const handleAddGap = () => {
-    if (!newGapTitle.trim() || !newGapPhenomenon.trim() || !newGapReasons.trim()) {
-      alert('请填写完整的剪刀差信息');
+    if (!newGapTitle.trim() || !newGapPhenomenon.trim()) {
+      alert('请填写标题和现象描述');
       return;
     }
-    if (aiScissorsGaps.length >= 5) {
-      alert('最多只能添加5条剪刀差');
+    if (aiScissorsGaps.length >= 10) {
+      alert('最多只能添加10条剪刀差');
       return;
     }
     setAiScissorsGaps(prev => [...prev, {
       title: newGapTitle,
       phenomenon: newGapPhenomenon,
-      possibleReasons: newGapReasons,
+      // 第一步不包含possibleReasons
     }]);
     setNewGapTitle('');
     setNewGapPhenomenon('');
-    setNewGapReasons('');
   };
 
-  // 删除问题条目
-  const handleDeleteProblem = (index: number) => {
-    setAiProblems(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // 添加问题条目
-  const handleAddProblem = () => {
-    if (!newProblem.trim()) {
-      alert('请填写问题内容');
-      return;
-    }
-    if (aiProblems.length >= 5) {
-      alert('最多只能添加5条问题');
-      return;
-    }
-    setAiProblems(prev => [...prev, newProblem]);
-    setNewProblem('');
-  };
 
   // 删除成因条目
   const handleDeleteCause = (index: number) => {
@@ -811,9 +1018,11 @@ function ProblemIdentification({
     setAiStrategies(prev => prev.filter((_, i) => i !== index));
   };
 
-  if (gapAnalysis.length === 0 && !brandDimension && !showAIAnalysis) {
-    return null;
-  }
+  // 始终显示问题定位板块，让用户可以点击AI智能分析
+  // 移除了条件判断，确保板块始终显示
+  // if (gapAnalysis.length === 0 && !brandDimension && !showAIAnalysis) {
+  //   return null;
+  // }
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -858,9 +1067,11 @@ function ProblemIdentification({
           {currentStep && currentStep !== null && (
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h5 className="text-md font-semibold text-gray-800">1. 剪刀差识别 {aiScissorsGaps.length > 0 && `(${aiScissorsGaps.length}/5)`}</h5>
+                <h5 className="text-md font-semibold text-gray-800">
+                  第一步：全面扫描数据，生成剪刀差 {aiScissorsGaps.length > 0 && `(${aiScissorsGaps.length}/10)`}
+                </h5>
                 {editingGaps && (
-                  <span className="text-xs text-gray-500">编辑模式：可删除或添加条目</span>
+                  <span className="text-xs text-gray-500">编辑模式：可删除或添加条目（AI已自动合并重复项目）</span>
                 )}
               </div>
               
@@ -881,14 +1092,11 @@ function ProblemIdentification({
                         </button>
                       )}
                       <div className="font-semibold text-gray-900 mb-2">{gap.title}</div>
-                      <div className="text-sm text-gray-700 mb-2">
+                      <div className="text-sm text-gray-700">
                         <span className="font-medium">现象：</span>
                         {gap.phenomenon}
                       </div>
-                      <div className="text-sm text-gray-600">
-                        <span className="font-medium">可能原因：</span>
-                        {gap.possibleReasons}
-                      </div>
+                      {/* 第一步不显示可能原因，原因分析在第二步进行 */}
                     </div>
                   ))}
                 </div>
@@ -908,23 +1116,17 @@ function ProblemIdentification({
                     <textarea
                       value={newGapPhenomenon}
                       onChange={(e) => setNewGapPhenomenon(e.target.value)}
-                      placeholder="现象描述"
+                      placeholder="现象描述（必须引用真实数据，清晰说明时间框架、增速计算口径）"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
-                      rows={2}
+                      rows={3}
                     />
-                    <textarea
-                      value={newGapReasons}
-                      onChange={(e) => setNewGapReasons(e.target.value)}
-                      placeholder="可能原因"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
-                      rows={2}
-                    />
+                    {/* 第一步不包含可能原因输入框，原因分析在第二步进行 */}
                     <button
                       onClick={handleAddGap}
-                      disabled={aiScissorsGaps.length >= 5}
+                      disabled={aiScissorsGaps.length >= 15}
                       className={clsx(
                         'px-4 py-2 rounded-lg text-sm font-medium',
-                        aiScissorsGaps.length >= 5
+                        aiScissorsGaps.length >= 15
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                           : 'bg-primary-600 text-white hover:bg-primary-700'
                       )}
@@ -946,99 +1148,19 @@ function ProblemIdentification({
                       : 'bg-green-600 text-white hover:bg-green-700'
                   )}
                 >
-                  {aiAnalysisLoading ? '分析中...' : '确认并进入下一步'}
+                  {aiAnalysisLoading ? '分析中...' : '确认并进入第二步'}
                 </button>
               )}
             </div>
           )}
 
-          {/* 步骤2：问题列表 */}
-          {(currentStep === 'problems' || currentStep === 'causes' || currentStep === 'strategies') && (
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <h5 className="text-md font-semibold text-gray-800">2. 潜在问题列表 {aiProblems.length > 0 && `(${aiProblems.length}/5)`}</h5>
-                {editingProblems && (
-                  <span className="text-xs text-gray-500">编辑模式：可删除或添加条目</span>
-                )}
-              </div>
-              
-              {aiProblems.length > 0 && (
-                <div className="space-y-2 mb-4">
-                  {aiProblems.map((problem, index) => (
-                    <div
-                      key={index}
-                      className="flex items-start space-x-3 bg-orange-50 border border-orange-200 rounded-lg p-3 relative"
-                    >
-                      {editingProblems && (
-                        <button
-                          onClick={() => handleDeleteProblem(index)}
-                          className="absolute top-2 right-2 text-red-500 hover:text-red-700"
-                          title="删除"
-                        >
-                          <span className="text-lg">×</span>
-                        </button>
-                      )}
-                      <span className="text-orange-600 font-bold mt-0.5">{index + 1}.</span>
-                      <span className="text-gray-700 flex-1">{problem}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {editingProblems && (
-                <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50 mb-4">
-                  <h6 className="text-sm font-medium text-gray-700 mb-3">添加新问题</h6>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={newProblem}
-                      onChange={(e) => setNewProblem(e.target.value)}
-                      placeholder="输入问题描述"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleAddProblem();
-                        }
-                      }}
-                    />
-                    <button
-                      onClick={handleAddProblem}
-                      disabled={aiProblems.length >= 5}
-                      className={clsx(
-                        'px-4 py-2 rounded-lg text-sm font-medium',
-                        aiProblems.length >= 5
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-primary-600 text-white hover:bg-primary-700'
-                      )}
-                    >
-                      添加
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {editingProblems && (
-                <button
-                  onClick={handleConfirmProblems}
-                  disabled={aiProblems.length === 0 || aiAnalysisLoading}
-                  className={clsx(
-                    'w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                    aiProblems.length === 0 || aiAnalysisLoading
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-green-600 text-white hover:bg-green-700'
-                  )}
-                >
-                  {aiAnalysisLoading ? '分析中...' : '确认并进入下一步'}
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* 步骤3：成因分析 */}
+          {/* 步骤2：深挖背后原因 */}
           {(currentStep === 'causes' || currentStep === 'strategies') && (
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h5 className="text-md font-semibold text-gray-800">3. 问题成因分析（四大因素） {aiCauses.length > 0 && `(${aiCauses.length}/5)`}</h5>
+                <h5 className="text-md font-semibold text-gray-800">
+                  第二步：深挖背后原因（优先使用数据库维度，必要时联网搜索） {aiCauses.length > 0 && `(${aiCauses.length}/5)`}
+                </h5>
                 {editingCauses && (
                   <span className="text-xs text-gray-500">编辑模式：可删除条目</span>
                 )}
@@ -1220,29 +1342,6 @@ function ProblemIdentification({
         </div>
       </div>
 
-      {/* 3. 优化建议 */}
-      <div>
-        <h4 className="text-lg font-semibold text-gray-900 mb-3">
-          3. 潜在可优化项
-        </h4>
-        {optimizationSuggestions.length > 0 ? (
-          <div className="space-y-2">
-            {optimizationSuggestions.map((suggestion, index) => (
-              <div
-                key={index}
-                className="flex items-start space-x-3 bg-green-50 border border-green-200 rounded-lg p-3"
-              >
-                <span className="text-green-600 font-bold mt-0.5">{index + 1}.</span>
-                <span className="text-gray-700 flex-1">{suggestion}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-gray-500 text-sm bg-gray-50 border border-gray-200 rounded-lg p-4">
-            暂无明确的优化建议。
-          </div>
-        )}
-      </div>
     </div>
   );
 }

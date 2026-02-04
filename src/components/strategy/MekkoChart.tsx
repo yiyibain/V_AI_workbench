@@ -1,5 +1,7 @@
 import { useMemo, useState, useRef } from 'react';
 import { RotateCcw } from 'lucide-react';
+import { clsx } from 'clsx';
+import { MarketDataPoint, DimensionConfig } from '../../types/strategy';
 
 interface MekkoSegment {
   yAxisValue: string;
@@ -16,6 +18,11 @@ interface MekkoDataItem {
 
 interface MekkoChartProps {
   data: MekkoDataItem[];
+  marketData?: MarketDataPoint[];
+  selectedXAxisKey?: string;
+  selectedYAxisKey?: string;
+  getDimensionValue?: (point: MarketDataPoint, dimensionKey: string) => string;
+  availableDimensions?: DimensionConfig[];
 }
 
 interface TooltipData {
@@ -26,6 +33,8 @@ interface TooltipData {
   share: number;
   value: number;
   totalValue: number;
+  cagr1924?: number | null;
+  growth2324?: number | null;
 }
 
 // 生成颜色
@@ -35,7 +44,14 @@ const colors = [
   '#14b8a6', '#a855f7', '#eab308', '#dc2626', '#64748b'
 ];
 
-export default function MekkoChart({ data }: MekkoChartProps) {
+export default function MekkoChart({ 
+  data, 
+  marketData = [], 
+  selectedXAxisKey = '', 
+  selectedYAxisKey = '',
+  getDimensionValue,
+  availableDimensions = []
+}: MekkoChartProps) {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
@@ -135,6 +151,198 @@ export default function MekkoChart({ data }: MekkoChartProps) {
     return map;
   }, [allYValues]);
 
+  // 计算CAGR和增速的辅助函数
+  const calculateMetrics = useMemo(() => {
+    if (!marketData.length || !selectedXAxisKey || !selectedYAxisKey || !getDimensionValue) {
+      return (_xAxisValue: string, _yAxisValue: string) => ({ cagr1924: null, growth2324: null });
+    }
+
+    // 找到年份维度（从availableDimensions中查找）
+    const yearDim = availableDimensions.find(d => {
+      const label = d.label.toLowerCase();
+      return label.includes('年') || label.includes('year') || label === '年';
+    });
+
+    // 辅助函数：标准化年份值（处理各种格式：2019, 19, "2019", "2019年"等）
+    const normalizeYear = (yearStr: string): string | null => {
+      if (!yearStr) return null;
+      const str = String(yearStr).trim();
+      
+      // 优先匹配4位数字（完整年份）
+      const match4 = str.match(/\d{4}/);
+      if (match4) {
+        const num = parseInt(match4[0]);
+        // 确保是合理的年份（1900-2099）
+        if (num >= 1900 && num <= 2099) {
+          return String(num);
+        }
+      }
+      
+      // 如果没有4位数字，尝试匹配2位数字
+      const match2 = str.match(/\d{2}/);
+      if (match2) {
+        const num = parseInt(match2[0]);
+        // 如果是两位数，判断是19xx还是20xx
+        // 19-99 认为是 19xx，00-18 认为是 20xx
+        if (num >= 19 && num <= 99) {
+          return `19${String(num).padStart(2, '0')}`;
+        } else {
+          return `20${String(num).padStart(2, '0')}`;
+        }
+      }
+      
+      return null;
+    };
+
+    return (xAxisValue: string, yAxisValue: string) => {
+      // xAxisValue和yAxisValue用于筛选数据点
+      if (!yearDim) {
+        // console.warn('[CAGR调试] 未找到年份维度，可用维度:', availableDimensions.map(d => d.label));
+        return { cagr1924: null, growth2324: null };
+      }
+
+      // 筛选出匹配的数据点（这个格子的所有数据，包括所有年份）
+      const matchingPoints = marketData.filter((point) => {
+        const xValue = getDimensionValue!(point, selectedXAxisKey);
+        const yValue = getDimensionValue!(point, selectedYAxisKey);
+        return xValue === xAxisValue && yValue === yAxisValue;
+      });
+
+      // 调试：检查所有匹配点的年份原始值
+      // const allRawYearValues = new Set<string>();
+      // matchingPoints.forEach((point) => {
+      //   const yearRaw = getDimensionValue!(point, yearDim.key);
+      //   if (yearRaw) {
+      //     allRawYearValues.add(yearRaw);
+      //   }
+      // });
+      // console.log('[CAGR调试] 匹配点的所有原始年份值:', {
+      //   xAxisValue,
+      //   yAxisValue,
+      //   原始年份值列表: Array.from(allRawYearValues).sort(),
+      //   数据点总数: matchingPoints.length
+      // });
+
+      // 按年份分组，累加pdot值
+      const yearData = new Map<string, number>();
+      const yearValueMap = new Map<string, string>(); // 原始值 -> 标准化值
+      
+      matchingPoints.forEach((point) => {
+        const yearRaw = getDimensionValue!(point, yearDim.key);
+        if (!yearRaw || !point.value) {
+          return;
+        }
+        
+        const yearNormalized = normalizeYear(yearRaw);
+        if (!yearNormalized) {
+          // console.warn('[CAGR调试] 无法标准化年份:', {
+          //   原始值: yearRaw,
+          //   类型: typeof yearRaw,
+          //   标准化结果: null
+          // });
+          return;
+        }
+        
+        // 保存原始值到标准化值的映射（用于调试）
+        if (!yearValueMap.has(yearNormalized)) {
+          yearValueMap.set(yearNormalized, yearRaw);
+        }
+        
+        const currentValue = yearData.get(yearNormalized) || 0;
+        yearData.set(yearNormalized, currentValue + point.value);
+      });
+
+      // 调试：输出年份数据（已禁用）
+      // if (matchingPoints.length > 0) {
+      //   // 收集所有原始年份值（用于调试）
+      //   const allRawYears = new Set<string>();
+      //   const allRawYearsWithCount = new Map<string, number>();
+      //   matchingPoints.forEach((point) => {
+      //     const yearRaw = getDimensionValue!(point, yearDim.key);
+      //     if (yearRaw) {
+      //       allRawYears.add(yearRaw);
+      //       allRawYearsWithCount.set(yearRaw, (allRawYearsWithCount.get(yearRaw) || 0) + 1);
+      //     }
+      //   });
+      //   
+      //   // 检查是否有2023相关的原始值
+      //   const has2023Raw = Array.from(allRawYears).some(y => {
+      //     const normalized = normalizeYear(y);
+      //     return normalized === '2023';
+      //   });
+      //   
+      //   console.log('[CAGR调试] 格子数据:', {
+      //     xAxisValue,
+      //     yAxisValue,
+      //     匹配数据点数: matchingPoints.length,
+      //     年份维度: yearDim.label,
+      //     年份维度key: yearDim.key,
+      //     所有原始年份值: Array.from(allRawYears).sort(),
+      //     原始年份值计数: Object.fromEntries(allRawYearsWithCount),
+      //     年份数据: Array.from(yearData.entries()).map(([k, v]) => ({ 
+      //       标准化年份: k, 
+      //       原始值: yearValueMap.get(k), 
+      //       pdot: v 
+      //     })),
+      //     所有标准化年份键: Array.from(yearData.keys()).sort(),
+      //     是否有2023原始值: has2023Raw,
+      //     是否有2023标准化: yearData.has('2023'),
+      //     是否有2024: yearData.has('2024'),
+      //     是否有2019: yearData.has('2019'),
+      //     // 显示所有可能包含2023的原始值
+      //     可能包含2023的值: Array.from(allRawYears).filter(y => 
+      //       y.includes('23') || y.includes('2023') || normalizeYear(y) === '2023'
+      //     )
+      //   });
+      // }
+
+      // 计算CAGR (2019-2024)
+      // CAGR公式：CAGR = (终值/初值)^(1/年数) - 1
+      let cagr1924: number | null = null;
+      const value2019 = yearData.get('2019');
+      const value2024 = yearData.get('2024');
+      
+      if (value2019 && value2024 && value2019 > 0) {
+        const years = 5; // 2019到2024是5年
+        cagr1924 = (Math.pow(value2024 / value2019, 1 / years) - 1) * 100;
+        // console.log('[CAGR调试] CAGR计算:', {
+        //   value2019,
+        //   value2024,
+        //   years,
+        //   cagr: cagr1924
+        // });
+      } else {
+        // console.log('[CAGR调试] CAGR计算失败:', {
+        //   value2019: value2019 || '缺失',
+        //   value2024: value2024 || '缺失',
+        //   可用年份: Array.from(yearData.keys())
+        // });
+      }
+
+      // 计算增速 (2023-2024)
+      // 增速公式：增速 = (2024值 - 2023值) / 2023值 * 100
+      let growth2324: number | null = null;
+      const value2023 = yearData.get('2023');
+      
+      if (value2023 && value2024 && value2023 > 0) {
+        growth2324 = ((value2024 - value2023) / value2023) * 100;
+        // console.log('[CAGR调试] 增速计算:', {
+        //   value2023,
+        //   value2024,
+        //   growth: growth2324
+        // });
+      } else {
+        // console.log('[CAGR调试] 增速计算失败:', {
+        //   value2023: value2023 || '缺失',
+        //   value2024: value2024 || '缺失',
+        //   可用年份: Array.from(yearData.keys())
+        // });
+      }
+
+      return { cagr1924, growth2324 };
+    };
+  }, [marketData, selectedXAxisKey, selectedYAxisKey, getDimensionValue, availableDimensions]);
+
   // 处理鼠标移动（tooltip和选择框）
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!svgRef.current) return;
@@ -170,6 +378,8 @@ export default function MekkoChart({ data }: MekkoChartProps) {
           
           // 检查鼠标Y坐标是否在这个段的范围内
           if (actualYPercent >= segmentYStart && actualYPercent <= segmentYEnd) {
+            // 计算CAGR和增速
+            const metrics = calculateMetrics(column.xAxisValue, segment.yAxisValue);
             setTooltip({
               x: e.clientX,
               y: e.clientY,
@@ -178,6 +388,8 @@ export default function MekkoChart({ data }: MekkoChartProps) {
               share: segment.share,
               value: segment.value,
               totalValue: column.xAxisTotalValue,
+              cagr1924: metrics.cagr1924,
+              growth2324: metrics.growth2324,
             });
             return;
           }
@@ -536,9 +748,9 @@ export default function MekkoChart({ data }: MekkoChartProps) {
           <div
             className="absolute bg-white border border-gray-300 rounded-lg shadow-lg p-3 z-10 pointer-events-none"
             style={{
-              left: `${Math.min(tooltip.x + 10, chartWidth - 220)}px`,
-              top: `${Math.max(10, tooltip.y - 80)}px`,
-              maxWidth: '200px',
+              left: `${Math.min(tooltip.x + 10, chartWidth - 250)}px`,
+              top: `${Math.max(10, tooltip.y - 120)}px`,
+              maxWidth: '230px',
             }}
           >
             <div className="text-sm font-semibold text-gray-900 mb-2">
@@ -550,15 +762,47 @@ export default function MekkoChart({ data }: MekkoChartProps) {
                 <span className="font-semibold text-gray-900">{tooltip.share.toFixed(2)}%</span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-gray-600">金额:</span>
+                <span className="text-gray-600">pdot:</span>
                 <span className="font-semibold text-gray-900">
-                  {tooltip.value.toLocaleString('zh-CN', { maximumFractionDigits: 0 })} 元
+                  {tooltip.value.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
                 </span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-gray-600">该分类总金额:</span>
+                <span className="text-gray-600">该分类总pdot:</span>
                 <span className="font-semibold text-gray-900">
-                  {tooltip.totalValue.toLocaleString('zh-CN', { maximumFractionDigits: 0 })} 元
+                  {tooltip.totalValue.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+                </span>
+              </div>
+              {/* CAGR 19-24 */}
+              <div className="flex justify-between gap-4 pt-1 border-t border-gray-200">
+                <span className="text-gray-600">pdot 19-24 CAGR:</span>
+                <span className={clsx(
+                  "font-semibold",
+                  tooltip.cagr1924 !== null && tooltip.cagr1924! >= 0 
+                    ? "text-green-600" 
+                    : tooltip.cagr1924 !== null 
+                    ? "text-red-600" 
+                    : "text-gray-400"
+                )}>
+                  {tooltip.cagr1924 !== null && tooltip.cagr1924 !== undefined
+                    ? `${tooltip.cagr1924.toFixed(2)}%` 
+                    : 'N/A'}
+                </span>
+              </div>
+              {/* 增速 23-24 */}
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-600">pdot 23-24 增速:</span>
+                <span className={clsx(
+                  "font-semibold",
+                  tooltip.growth2324 !== null && tooltip.growth2324! >= 0 
+                    ? "text-green-600" 
+                    : tooltip.growth2324 !== null 
+                    ? "text-red-600" 
+                    : "text-gray-400"
+                )}>
+                  {tooltip.growth2324 !== null && tooltip.growth2324 !== undefined
+                    ? `${tooltip.growth2324.toFixed(2)}%` 
+                    : 'N/A'}
                 </span>
               </div>
             </div>
