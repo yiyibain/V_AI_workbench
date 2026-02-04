@@ -928,9 +928,9 @@ function ProblemIdentification({
         selectedBrand,
         marketData,
         availableDimensions,
-        undefined,
-        5,
-        undefined // 不传入问题列表，直接基于剪刀差分析成因
+        undefined, // userFeedback
+        5 // maxProblems
+        // confirmedProblems 不传入，使用默认值
       );
       
       setAiCauses(problemsResult.causes.slice(0, 5));
