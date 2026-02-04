@@ -519,4 +519,3 @@ export function getBasicIndicators(productId: string): BasicIndicators {
   }
   return indicators;
 }
-
