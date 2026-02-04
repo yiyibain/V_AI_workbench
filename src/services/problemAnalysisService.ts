@@ -74,17 +74,17 @@ const DATA_QUERY_TOOLS = [
     type: 'function',
     function: {
       name: 'queryByProvince',
-      description: '按省份筛选数据，分析品牌在不同省份的表现差异',
+      description: '按省份筛选数据，分析品牌在不同省份的表现差异。可以传入"all"查看所有省份的对比，也可以传入具体省份名查看该省份的详细数据。建议先调用province="all"查看整体分布，再针对异常省份深入分析。',
       parameters: {
         type: 'object',
         properties: {
           province: {
             type: 'string',
-            description: '省份名称，如"浙江"、"安徽"。如果传入"all"，则返回所有省份的统计信息'
+            description: '省份名称，如"浙江"、"安徽"。如果传入"all"，则返回所有省份的统计信息（推荐先调用此方式查看整体分布）'
           },
           brand: {
             type: 'string',
-            description: '可选：品牌名称，如"立普妥"。如果不提供，则返回所有品牌的数据'
+            description: '可选：品牌名称，如"立普妥"、"可定"。如果不提供，则返回所有品牌的数据。支持模糊匹配，如"立普妥"可以匹配"立普妥(阿托伐他汀钙片)"等'
           }
         },
         required: ['province']
@@ -95,7 +95,7 @@ const DATA_QUERY_TOOLS = [
     type: 'function',
     function: {
       name: 'queryByProductSpec',
-      description: '按产品特性筛选数据（价格带、包装大小、剂量等），分析特定品规的销售表现',
+      description: '按产品特性筛选数据（价格带、包装大小、剂量等），分析特定品规的销售表现。可以单独使用某个参数，也可以组合使用多个参数进行交叉分析。建议先不传参数查看所有规格，再针对表现好/差的规格深入分析。',
       parameters: {
         type: 'object',
         properties: {
@@ -105,7 +105,7 @@ const DATA_QUERY_TOOLS = [
           },
           packageSize: {
             type: 'string',
-            description: '包装大小，如"大包装"、"小包装"'
+            description: '包装大小，如"大包装"、"小包装"、"20mgx28s"、"10mgx14s"等'
           },
           dosage: {
             type: 'string',
@@ -113,7 +113,7 @@ const DATA_QUERY_TOOLS = [
           },
           brand: {
             type: 'string',
-            description: '可选：品牌名称'
+            description: '可选：品牌名称，如"立普妥"、"可定"。支持模糊匹配'
           }
         }
       }
@@ -155,21 +155,21 @@ const DATA_QUERY_TOOLS = [
     type: 'function',
     function: {
       name: 'queryWD',
-      description: '查询分销率WD数据，分析渠道铺货情况',
+      description: '查询分销率WD数据，分析渠道铺货情况。可以单独查询某个品牌的整体WD，也可以结合省份、规格等维度进行交叉分析。建议先查询整体WD，再结合省份、规格等维度深入分析数据分布和异常值。',
       parameters: {
         type: 'object',
         properties: {
           province: {
             type: 'string',
-            description: '可选：省份名称'
+            description: '可选：省份名称，如"浙江"、"四川"。可以结合brand参数查看特定省份特定品牌的WD'
           },
           brand: {
             type: 'string',
-            description: '可选：品牌名称'
+            description: '可选：品牌名称，如"立普妥"、"可定"。支持模糊匹配。如果不提供，则返回所有品牌的WD数据'
           },
           packageSize: {
             type: 'string',
-            description: '可选：包装大小'
+            description: '可选：包装大小，如"大包装"、"小包装"、"20mgx28s"等。可以结合brand和province参数进行多维度交叉分析'
           }
         }
       }
@@ -1115,17 +1115,17 @@ ${problemsText}
 系统为你提供了以下数据查询工具，**你必须根据分析需要主动调用这些工具**：
 1. **queryByProvince**: 按省份筛选数据，分析品牌在不同省份的表现差异
    - 使用场景：分析"是否品牌表现主要受小部分省份拖累"时，必须调用此函数
-   - 示例：queryByProvince({province: "all", brand: "${selectedBrand}"}) 查看所有省份数据
+   - 示例：queryByProvince({province: 'all', brand: '${selectedBrand}'}) 查看所有省份数据
 2. **queryByProductSpec**: 按产品特性筛选（价格带、包装大小、剂量等），分析特定品规的销售表现
    - 使用场景：分析"是否品牌的特定品规销售表现差"时，必须调用此函数
-   - 示例：queryByProductSpec({dosage: "10mg", brand: "${selectedBrand}"}) 查看10mg产品数据
+   - 示例：queryByProductSpec({dosage: '10mg', brand: '${selectedBrand}'}) 查看10mg产品数据
 3. **queryPriceDifference**: 查询渠道间价差（电商vs零售），分析价格差异对销售的影响
    - 使用场景：分析"是否品牌在电商中的价格高于零售"时，必须调用此函数
 4. **queryPublicAwareness**: 查询公域认知度数据，对比不同品牌的认知度差异
    - 使用场景：分析"是否品牌的公域认知度不如竞对"时，必须调用此函数
 5. **queryWD**: 查询分销率WD数据，分析渠道铺货情况
    - 使用场景：分析"是否品牌的特定品规分销率WD表现不佳"时，必须调用此函数
-   - 示例：queryWD({province: "浙江", brand: "${selectedBrand}"}) 查看浙江的WD数据
+   - 示例：queryWD({province: '浙江', brand: '${selectedBrand}'}) 查看浙江的WD数据
 
 **强制要求**：
 1. **在分析每个剪刀差时，必须先调用相关工具函数查询数据库获取真实数据**
@@ -1140,35 +1140,35 @@ ${problemsText}
 深挖时，**优先使用数据库中已经提供的数据维度进行深挖**，并且**必须主动进行多角度、多层次的深入分析**：
 
 1. **省份维度深度分析**（不要只报告平均值）：
-   - **第一步**：调用 `queryByProvince({province: "all", brand: "${selectedBrand}"})` 查看所有省份数据
+   - **第一步**：调用 queryByProvince({province: 'all', brand: '${selectedBrand}'}) 查看所有省份数据
    - **第二步**：识别数据模式（哪些省份高、哪些省份低、是否存在区域分化）
    - **第三步**：提出假设（如"东部省份表现更好"、"集采中标省份表现更好"）
-   - **第四步**：调用 `queryByProvince({province: "具体省份名", brand: "${selectedBrand}"})` 验证假设
+   - **第四步**：调用 queryByProvince({province: '具体省份名', brand: '${selectedBrand}'}) 验证假设
    - **第五步**：结合其他维度（如规格、WD）进行交叉分析
    - **输出要求**：不要只说"某些省份表现差"，要说"通过分析发现，立普妥在东部省份（浙江、江苏）的WD达到60+，而在西部省份（四川、陕西）仅为30-，这种区域分化主要集中在大包装规格上，可能与东部地区患者更偏好长疗程、大包装有关"
 
 2. **产品特性维度深度分析**（不要只报告平均值）：
-   - **第一步**：调用 `queryByProductSpec({brand: "${selectedBrand}"})` 查看所有规格数据
+   - **第一步**：调用 queryByProductSpec({brand: '${selectedBrand}'}) 查看所有规格数据
    - **第二步**：识别表现好/差的规格，分析差异原因
-   - **第三步**：结合省份维度：`queryByProductSpec({dosage: "10mg", brand: "${selectedBrand}"})` 和 `queryByProductSpec({dosage: "20mg", brand: "${selectedBrand}"})`
-   - **第四步**：结合WD数据：`queryWD({brand: "${selectedBrand}", packageSize: "大包装"})` 对比不同规格的WD
+   - **第三步**：结合省份维度：queryByProductSpec({dosage: '10mg', brand: '${selectedBrand}'}) 和 queryByProductSpec({dosage: '20mg', brand: '${selectedBrand}'})
+   - **第四步**：结合WD数据：queryWD({brand: '${selectedBrand}', packageSize: '大包装'}) 对比不同规格的WD
    - **输出要求**：要分析"为什么某些规格表现差"，而不仅仅是"哪些规格表现差"
 
 3. **WD分销率深度分析**（不要只报告平均值）：
-   - **第一步**：调用 `queryWD({brand: "${selectedBrand}"})` 获取整体WD
+   - **第一步**：调用 queryWD({brand: '${selectedBrand}'}) 获取整体WD
    - **第二步**：**不要只报告平均值！** 要分析数据分布：
-     - 调用 `queryWD({province: "浙江", brand: "${selectedBrand}"})` 查看不同省份的WD
-     - 调用 `queryWD({brand: "${selectedBrand}", packageSize: "大包装"})` 查看不同规格的WD
+     - 调用 queryWD({province: '浙江', brand: '${selectedBrand}'}) 查看不同省份的WD
+     - 调用 queryWD({brand: '${selectedBrand}', packageSize: '大包装'}) 查看不同规格的WD
    - **第三步**：识别异常值（WD特别高或特别低的省份/规格）
-   - **第四步**：对比竞品：`queryWD({brand: "可定"})` 并分析差异原因
+   - **第四步**：对比竞品：queryWD({brand: '可定'}) 并分析差异原因
    - **输出要求**：要说明"立普妥WD为46.33，但通过深入分析发现，其在东部省份达到60+，而在西部省份仅为30-，这种区域分化主要集中在大包装规格上"
 
 4. **公域认知度维度**：是否品牌的公域认知度不如竞对，导致份额较低？
-   - 调用 `queryPublicAwareness({brand: "${selectedBrand}"})` 和 `queryPublicAwareness({brand: "可定"})` 对比
+   - 调用 queryPublicAwareness({brand: '${selectedBrand}'}) 和 queryPublicAwareness({brand: '可定'}) 对比
    - 分析认知度差异的原因
 
 5. **渠道间价差维度**：是否品牌在电商中的价格高于零售，导致患者都去电商购买，而不在零售购买？
-   - 调用 `queryPriceDifference({brand: "${selectedBrand}"})` 查看价格差异
+   - 调用 queryPriceDifference({brand: '${selectedBrand}'}) 查看价格差异
    - 分析价格差异对销售的影响
 
 **分析深度要求**：
@@ -1247,11 +1247,11 @@ ${gapsText}
 
 **第一步：必须调用查询函数获取数据**
 在分析每个剪刀差之前，你必须先调用相关的查询函数获取真实数据：
-1. **省份维度分析**：必须调用 queryByProvince({province: "all", brand: "${selectedBrand}"}) 查看所有省份数据，识别表现差的省份
-2. **产品特性维度分析**：必须调用 queryByProductSpec({brand: "${selectedBrand}"}) 查看产品特性数据，识别表现差的品规
-3. **渠道间价差分析**：必须调用 queryPriceDifference({brand: "${selectedBrand}"}) 查看价格差异数据
-4. **公域认知度分析**：必须调用 queryPublicAwareness({brand: "${selectedBrand}"}) 查看认知度数据
-5. **分销率WD分析**：必须调用 queryWD({brand: "${selectedBrand}"}) 查看分销率数据
+1. **省份维度分析**：必须调用 queryByProvince({province: 'all', brand: '${selectedBrand}'}) 查看所有省份数据，识别表现差的省份
+2. **产品特性维度分析**：必须调用 queryByProductSpec({brand: '${selectedBrand}'}) 查看产品特性数据，识别表现差的品规
+3. **渠道间价差分析**：必须调用 queryPriceDifference({brand: '${selectedBrand}'}) 查看价格差异数据
+4. **公域认知度分析**：必须调用 queryPublicAwareness({brand: '${selectedBrand}'}) 查看认知度数据
+5. **分销率WD分析**：必须调用 queryWD({brand: '${selectedBrand}'}) 查看分销率数据
 
 **第二步：基于查询结果进行深入分析（非常重要）**
 **不要只做简单的数据对比！** 你必须基于初步查询结果，主动进行多角度、多层次的深入分析：
@@ -1259,10 +1259,10 @@ ${gapsText}
 1. **主动探索数据模式**：
    - 如果初步查询发现"立普妥的平均WD为46.33，可定为39.19"，不要只停留在"立普妥略高"的结论
    - **必须主动调用更多查询函数**，从多个角度深入分析：
-     - 调用 `queryByProvince({province: "all", brand: "立普妥"})` 查看省份分布，识别哪些省份拉高了平均值，哪些省份拖了后腿
-     - 调用 `queryByProductSpec({brand: "立普妥"})` 查看不同规格的表现，识别哪些规格表现好/差
-     - 调用 `queryWD({brand: "立普妥"})` 和 `queryWD({brand: "可定"})` 对比分析
-     - 结合省份和规格：`queryWD({province: "浙江", brand: "立普妥"})` 查看特定省份的表现
+     - 调用 queryByProvince({province: 'all', brand: '立普妥'}) 查看省份分布，识别哪些省份拉高了平均值，哪些省份拖了后腿
+     - 调用 queryByProductSpec({brand: '立普妥'}) 查看不同规格的表现，识别哪些规格表现好/差
+     - 调用 queryWD({brand: '立普妥'}) 和 queryWD({brand: '可定'}) 对比分析
+     - 结合省份和规格：queryWD({province: '浙江', brand: '立普妥'}) 查看特定省份的表现
 
 2. **识别数据异常和模式**：
    - 如果发现某些省份/规格的WD明显偏离平均值，必须深入分析原因
@@ -1296,12 +1296,18 @@ ${gapsText}
 **第四步：提出策略建议**
 为每个剪刀差提出1-3条具体可执行策略。
 
-**输出要求**：
-- 在JSON输出的每个cause条目中，必须明确说明使用了哪些查询函数（至少3-5个）
+**输出要求（深度分析要求）**：
+- 在JSON输出的每个cause条目中，必须明确说明使用了哪些查询函数（至少3-5个，越多越好）
 - 必须引用查询函数返回的具体数据，并进行深入分析：
-  - 不要只说"立普妥的平均WD为46.33"，要说"立普妥的平均WD为46.33，但通过省份分析发现，其在东部省份（如浙江、江苏）的WD达到60+，而在西部省份（如四川、陕西）的WD仅为30-，存在明显的区域分化；进一步分析发现，这种分化主要集中在大包装规格（20mgx28s）上，小包装规格（10mgx14s）的区域差异较小"
-  - 要分析数据分布、异常值、模式，而不仅仅是平均值
-- 要提出具体的假设并说明验证结果（如"假设：立普妥在集采中标省份WD更高 → 验证：通过查询发现，在10mg中标省份，立普妥WD为50+，而在非中标省份WD为40-，假设成立"）
+  - ❌ **错误示例（太机械）**："立普妥的平均WD为46.33，可定的平均WD为39.19。立普妥的分销率WD略高于可定"
+  - ✅ **正确示例（深度分析）**："通过queryWD查询发现，立普妥的平均WD为46.33，可定为39.19。但进一步分析发现：
+    1. 省份分化明显：通过queryByProvince和queryWD交叉分析，立普妥在东部省份（浙江、江苏）的WD达到60+，而在西部省份（四川、陕西）仅为30-，存在明显的区域分化
+    2. 规格差异：通过queryByProductSpec和queryWD分析，立普妥大包装规格（20mgx28s）的WD为50+，而小包装规格（10mgx14s）的WD为40-，这种差异在西部省份更加明显
+    3. 竞品对比：可定虽然整体WD较低，但在西部省份的WD反而略高于立普妥（35 vs 30），说明立普妥在西部省份的分销存在明显短板
+    4. 可能原因：结合省份和规格分析，立普妥在西部省份大包装规格的WD偏低，可能与西部地区患者更偏好小包装、短疗程有关，而立普妥在西部省份的大包装铺货不足"
+- 要分析数据分布、异常值、模式，而不仅仅是平均值
+- 要提出具体的假设并说明验证结果（如"假设：立普妥在集采中标省份WD更高 → 验证：通过queryByProvince和queryWD查询发现，在10mg中标省份，立普妥WD为50+，而在非中标省份WD为40-，假设成立"）
+- 要进行多维度交叉分析（省份×规格、省份×品牌、规格×品牌等）
 - 如果某个维度没有查询到数据，必须说明"数据库中没有相关数据，基于推测..."
 - 请严格按照JSON格式输出，只输出JSON，不要包含其他文字说明。每个剪刀差必须对应一个cause条目和一个strategy条目。`;
 
