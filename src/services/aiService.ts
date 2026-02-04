@@ -205,8 +205,8 @@ export async function analyzeProvincePerformance(
 }
 
 // 辅助函数：提取关键发现
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractKeyFindings(_response: string, data: any): string[] { // eslint-disable-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+function extractKeyFindings(_response: string, data: any): string[] {
   const findings: string[] = [];
   
   if (data.moleculeInternalShareChange && data.moleculeInternalShareChange < -2) {
