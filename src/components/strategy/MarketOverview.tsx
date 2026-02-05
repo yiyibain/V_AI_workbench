@@ -726,7 +726,7 @@ function ProblemIdentification({
 
     try {
       console.log('🎯 开始第一步：全面扫描数据，生成剪刀差');
-      // 第一步：全面扫描数据，生成剪刀差（AI会自动完成合并，最终输出10条）
+      // 第一步：全面扫描数据，生成剪刀差（AI会自动完成合并，最终输出5条左右）
       const gapsResult = await analyzeScissorsGaps(
         marketData,
         mekkoData,
@@ -734,11 +734,11 @@ function ProblemIdentification({
         selectedYAxisKey,
         availableDimensions,
         selectedBrand,
-        10 // 最终输出10条（AI会先扫描生成更多，然后合并，最后输出10条）
+        5 // 最终输出5条左右（AI会先扫描生成更多，然后合并，最后输出5条左右）
       );
       
       // AI已经完成了合并，直接显示最终结果
-      setAiScissorsGaps(gapsResult.scissorsGaps.slice(0, 10));
+      setAiScissorsGaps(gapsResult.scissorsGaps.slice(0, 5));
       setEditingGaps(true);
       setProgressMessage('');
     } catch (error) {
