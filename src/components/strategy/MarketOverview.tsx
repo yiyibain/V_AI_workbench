@@ -699,6 +699,8 @@ function ProblemIdentification({
   
   // 进度更新状态
   const [progressMessage, setProgressMessage] = useState<string>('');
+  // 存档状态
+  const [isSaving, setIsSaving] = useState(false);
   
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
 
@@ -805,10 +807,99 @@ function ProblemIdentification({
     }
   };
 
+  // 生成markdown报告
+  const generateMarkdownReport = (): string => {
+    const timestamp = new Date().toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    let markdown = `# 问题定位分析报告\n\n`;
+    markdown += `**生成时间**: ${timestamp}\n\n`;
+    markdown += `**分析品牌**: ${selectedBrand}\n\n`;
+    markdown += `---\n\n`;
+
+    // 第一部分：问题定位（剪刀差）
+    markdown += `## 一、问题定位\n\n`;
+    if (aiScissorsGaps.length > 0) {
+      aiScissorsGaps.forEach((gap, index) => {
+        markdown += `### ${index + 1}. ${gap.title}\n\n`;
+        markdown += `**现象描述**:\n\n${gap.phenomenon}\n\n`;
+        if (gap.possibleReasons) {
+          markdown += `**可能原因**:\n\n${gap.possibleReasons}\n\n`;
+        }
+        markdown += `---\n\n`;
+      });
+    } else {
+      markdown += `暂无问题定位数据\n\n`;
+    }
+
+    // 第二部分：深挖原因
+    markdown += `## 二、深挖原因\n\n`;
+    if (aiCauses.length > 0) {
+      aiCauses.forEach((cause, index) => {
+        markdown += `### ${index + 1}. ${cause.problem}\n\n`;
+        if (cause.statement) {
+          markdown += `**原因分析**:\n\n${cause.statement}\n\n`;
+        }
+        markdown += `---\n\n`;
+      });
+    } else {
+      markdown += `暂无深挖原因数据\n\n`;
+    }
+
+    markdown += `---\n\n`;
+    markdown += `*本报告由策略规划工具自动生成*\n`;
+
+    return markdown;
+  };
+
+  // 下载markdown文件
+  const downloadMarkdown = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // 确认步骤2（成因分析）
-  const handleConfirmCauses = () => {
-    setEditingCauses(false);
-    setCurrentStep(null);
+  const handleConfirmCauses = async () => {
+    // 显示存档弹窗
+    setIsSaving(true);
+    
+    try {
+      // 生成markdown内容
+      const markdownContent = generateMarkdownReport();
+      
+      // 生成文件名
+      const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const filename = `问题定位分析报告_${selectedBrand}_${timestamp}.md`;
+      
+      // 模拟存档过程（给用户看到提示）
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // 下载文件
+      downloadMarkdown(markdownContent, filename);
+      
+      // 关闭弹窗
+      setIsSaving(false);
+      
+      // 更新UI状态
+      setEditingCauses(false);
+      setCurrentStep(null);
+    } catch (error) {
+      console.error('存档失败:', error);
+      alert('存档失败，请稍后重试');
+      setIsSaving(false);
+    }
   };
 
   // 删除剪刀差条目
@@ -1052,6 +1143,18 @@ function ProblemIdentification({
             </div>
           )}
 
+        </div>
+      )}
+
+      {/* 存档中弹窗 */}
+      {isSaving && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex flex-col items-center space-y-4">
+              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+              <p className="text-lg font-medium text-gray-900">当前分析报告存档中...</p>
+            </div>
+          </div>
         </div>
       )}
 
