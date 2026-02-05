@@ -366,7 +366,7 @@ function fuzzyMatchBrand(dataBrand: string | undefined | null, targetBrand: stri
 
 // 执行数据查询函数
 // 注意：所有查询都使用模糊匹配（fuzzyMatch），包括品牌、省份、规格、剂量、价格等维度
-async function executeDataQuery(
+export async function executeDataQuery(
   functionName: string,
   args: any,
   _marketData: MarketDataPoint[], // 保留参数以保持接口一致性，但实际使用数据库文件
@@ -918,7 +918,7 @@ export async function analyzeProblemsAndStrategies(
   "causes": [
     {
       "problem": "问题描述",
-      "statement": "总结性的分析陈述，必须包含环境因素、商业推广因素、产品因素、资源分配因素四个维度的分析，但不要按四个因素分类列出，而是自然地融合在一句连贯的statement中。例如：'医院内，立普妥分子式内份额与可定持平（均为~12%），零售渠道内，立普妥在分子式内份额低于可定（~9%对比~12%）。从环境因素看，立普妥主要是10mg中标省份（如安徽、合肥）的份额明显低，这些省份集采政策严格，仅10mg中标导致院内处方向零售转移受限。从产品因素看，立普妥在10mg剂量数据量是20mg的近2倍，但10mg的WD仅为25.92，远低于20mg的58.32，显示产品剂量结构不平衡。从商业推广因素看，立普妥10mg的WD为25.92，而可定10mg的WD为46.85，两者相差20.93个百分点，说明在10mg剂量的商业推广和渠道覆盖上，立普妥明显弱于可定。从资源分配因素看，立普妥资源分配存在严重不平衡：在10mg剂量上投入不足（WD仅25.92），而在20mg上过度投入（WD达58.32），相比之下，可定在10mg剂量上资源投入更充分（WD46.85），这解释了为什么可定在分子式内份额更高。'"
+      "statement": "总结性的分析陈述，必须包含环境因素、商业推广因素、产品因素、资源分配因素四个维度的分析。必须使用结构化格式：用换行符\\n分隔段落，每个维度独立成段，使用**环境因素**、**商业推广因素**、**产品因素**、**资源分配因素**作为小标题。⚠️ 重要：不要在statement中提及金额和份额数据。例如：'医院内，立普妥分子式内表现与可定持平，零售渠道内，立普妥表现低于可定。\\n\\n**环境因素**：立普妥主要是10mg中标省份（如安徽、合肥）的表现明显低，这些省份集采政策严格，仅10mg中标导致院内处方向零售转移受限。\\n\\n**产品因素**：立普妥在10mg剂量数据量是20mg的近2倍，说明10mg是主要使用剂量，但立普妥在10mg剂量的产品定位和患者教育可能不足，导致患者对低剂量产品的认知和接受度有限。\\n\\n**商业推广因素**：立普妥10mg的WD为25.92，而可定10mg的WD为46.85，两者相差20.93个百分点，说明在10mg剂量的商业推广和渠道覆盖上，立普妥明显弱于可定，渠道铺货不足限制了产品的可及性。\\n\\n**资源分配因素**：立普妥可能将更多资源投入到高剂量产品的学术推广和医生教育上，而低剂量产品的市场教育和患者管理投入相对不足，相比之下，可定在10mg剂量上的市场投入更充分，包括患者教育、渠道建设和医生沟通，这解释了为什么可定表现更好。'"
     }
   ]
 }
@@ -929,7 +929,7 @@ export async function analyzeProblemsAndStrategies(
   - **商业推广因素**：渠道覆盖、推广策略、市场投入、WD分销率等（这是唯一可以提WD的维度，WD是渠道覆盖的重要指标）
   - **产品因素**：剂量规格、包装大小、产品特性、产品定位等（不要提WD，用domain knowledge分析产品本身的特点和定位）
   - **资源分配因素**：资源投入、渠道资源配置、市场策略重点等（不要只提WD，用domain knowledge分析资源分配策略）
-- **不要按四个因素分类列出**，而是自然地融合在一句连贯的statement中
+- **必须使用结构化格式**：不要一长串话，要用段落和小标题来组织内容，每个维度独立成段，使用**环境因素**、**商业推广因素**、**产品因素**、**资源分配因素**作为小标题，用换行符\\n分隔段落
 - 必须引用查询结果中的具体数据（如数值、省份名称等），但**不要提及金额和份额数据**
 - **重要**：WD（分销率）数据只在商业推广因素中提及，其他维度要用domain knowledge来丰富分析，让故事更丰满
 - 可以基于domain knowledge补充合理的分析，但要与查询数据结合
@@ -960,104 +960,104 @@ ${problem}
 
 请严格按照JSON格式输出，只输出JSON，不要包含其他文字说明。注意：只需要输出成因分析（causes），不需要输出策略建议（strategies）。`;
 
-        let responseText = '';
-        
-        if (!DEEPSEEK_API_KEY) {
-          console.log('⚠️ 未配置DEEPSEEK_API_KEY，使用模拟响应（不会调用查询函数）');
-          // 模拟响应
-          responseText = JSON.stringify({
+      let responseText = '';
+      
+      if (!DEEPSEEK_API_KEY) {
+        console.log('⚠️ 未配置DEEPSEEK_API_KEY，使用模拟响应（不会调用查询函数）');
+        // 模拟响应
+        responseText = JSON.stringify({
             causes: [{
               problem: problem,
               statement: '基于数据库维度分析：通过省份维度分析发现，品牌表现主要受部分省份拖累，这些省份的共同点是集采政策严格、集采中阿托伐他汀仅有10mg中标。同时，通过产品特性维度分析发现，大包装产品渠道分销WD表现不佳（WD为44，对比其他省份60），导致院外承接院内处方能力差。',
             }],
-          });
-        } else {
-          // 支持Function Calling的多轮对话
-          const messages: Array<{
-            role: 'system' | 'user' | 'assistant' | 'tool';
-            content?: string;
-            tool_calls?: Array<{
-              id: string;
-              type: 'function';
-              function: {
-                name: string;
-                arguments: string;
-              };
-            }>;
-            tool_call_id?: string;
-            name?: string;
-          }> = [
-            { role: 'system', content: systemPromptForCauses },
+        });
+      } else {
+        // 支持Function Calling的多轮对话
+        const messages: Array<{
+          role: 'system' | 'user' | 'assistant' | 'tool';
+          content?: string;
+          tool_calls?: Array<{
+            id: string;
+            type: 'function';
+            function: {
+              name: string;
+              arguments: string;
+            };
+          }>;
+          tool_call_id?: string;
+          name?: string;
+        }> = [
+          { role: 'system', content: systemPromptForCauses },
             { role: 'user', content: userPromptForSingleProblem }
-          ];
+        ];
 
           const maxIterations = 15;
-          let iteration = 0;
-          
+        let iteration = 0;
+        
           console.log('🚀 开始AI分析（单个问题），支持Function Calling，工具数量:', DATA_QUERY_TOOLS.length);
 
-          while (iteration < maxIterations) {
-            const response = await axios.post(
-              DEEPSEEK_API_URL,
-              {
-                model: 'deepseek-chat',
-                messages: messages,
-                tools: DATA_QUERY_TOOLS,
-                tool_choice: 'auto',
-                temperature: 0.7,
+        while (iteration < maxIterations) {
+          const response = await axios.post(
+            DEEPSEEK_API_URL,
+            {
+              model: 'deepseek-chat',
+              messages: messages,
+              tools: DATA_QUERY_TOOLS,
+              tool_choice: 'auto',
+              temperature: 0.7,
                 max_tokens: 8000, // 增加token限制
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Content-Type': 'application/json',
               },
-              {
-                headers: {
-                  'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
-
-            const message = response.data.choices[0]?.message;
-            if (!message) {
-              break;
             }
+          );
 
-            messages.push({
-              role: 'assistant',
-              content: message.content || undefined,
-              tool_calls: message.tool_calls || undefined
-            });
+          const message = response.data.choices[0]?.message;
+          if (!message) {
+            break;
+          }
 
-            if (message.tool_calls && message.tool_calls.length > 0) {
+          messages.push({
+            role: 'assistant',
+            content: message.content || undefined,
+            tool_calls: message.tool_calls || undefined
+          });
+
+          if (message.tool_calls && message.tool_calls.length > 0) {
               console.log(`🔍 AI请求调用查询函数（问题 ${i + 1}），共`, message.tool_calls.length, '个函数调用');
-              for (const toolCall of message.tool_calls) {
-                const functionName = toolCall.function.name;
-                let functionArgs: any;
-                
-                try {
-                  functionArgs = JSON.parse(toolCall.function.arguments);
-                  console.log('📊 调用查询函数:', functionName, '参数:', functionArgs);
-                } catch (e) {
-                  console.error('Failed to parse function arguments:', e);
-                  functionArgs = {};
-                }
-
-                const queryResult = await executeDataQuery(
-                  functionName,
-                  functionArgs,
-                  marketData,
-                  availableDimensions,
-                  selectedBrand
-                );
-
-                console.log('✅ 查询结果:', functionName, '返回数据长度:', queryResult.length, '字符');
-                console.log('📋 查询结果预览:', queryResult.substring(0, 200) + '...');
-
-                messages.push({
-                  role: 'tool',
-                  content: queryResult,
-                  tool_call_id: toolCall.id,
-                  name: functionName
-                });
+            for (const toolCall of message.tool_calls) {
+              const functionName = toolCall.function.name;
+              let functionArgs: any;
+              
+              try {
+                functionArgs = JSON.parse(toolCall.function.arguments);
+                console.log('📊 调用查询函数:', functionName, '参数:', functionArgs);
+              } catch (e) {
+                console.error('Failed to parse function arguments:', e);
+                functionArgs = {};
               }
+
+              const queryResult = await executeDataQuery(
+                functionName,
+                functionArgs,
+                marketData,
+                availableDimensions,
+                selectedBrand
+              );
+
+              console.log('✅ 查询结果:', functionName, '返回数据长度:', queryResult.length, '字符');
+              console.log('📋 查询结果预览:', queryResult.substring(0, 200) + '...');
+
+              messages.push({
+                role: 'tool',
+                content: queryResult,
+                tool_call_id: toolCall.id,
+                name: functionName
+              });
+            }
 
               // 在查询结果返回后，提醒AI继续分析
               messages.push({
@@ -1065,29 +1065,29 @@ ${problem}
                 content: `查询结果已返回。请基于这些查询结果进行深度分析，并输出JSON格式的分析结果。记住：只分析当前这一个问题，输出格式为 {"causes": [{"problem": "${problem}", "statement": "总结性的分析陈述..."}]}`
               });
 
-              iteration++;
-              continue;
-            } else {
+            iteration++;
+            continue;
+          } else {
               console.log(`📝 AI返回最终分析结果（问题 ${i + 1}）`);
-              responseText = message.content || '';
-              break;
-            }
-          }
-
-          if (iteration >= maxIterations) {
-            console.warn(`⚠️ Function calling reached max iterations（问题 ${i + 1}）`);
-            const lastMessage = messages[messages.length - 1];
-            responseText = lastMessage.content || '分析超时，请重试';
+            responseText = message.content || '';
+            break;
           }
         }
 
-        // 尝试解析JSON响应
-        try {
-          const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || 
-                           responseText.match(/```\s*([\s\S]*?)\s*```/);
-          const jsonText = jsonMatch ? jsonMatch[1] : responseText;
-          
-          const result = JSON.parse(jsonText.trim());
+        if (iteration >= maxIterations) {
+            console.warn(`⚠️ Function calling reached max iterations（问题 ${i + 1}）`);
+          const lastMessage = messages[messages.length - 1];
+          responseText = lastMessage.content || '分析超时，请重试';
+        }
+      }
+
+      // 尝试解析JSON响应
+      try {
+        const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || 
+                         responseText.match(/```\s*([\s\S]*?)\s*```/);
+        const jsonText = jsonMatch ? jsonMatch[1] : responseText;
+        
+        const result = JSON.parse(jsonText.trim());
           const causes = result.causes || [];
           
           if (causes.length > 0) {
@@ -1112,11 +1112,11 @@ ${problem}
         }
       }
       
-      return {
-        problems: confirmedProblems, // 返回确认的问题列表
+        return {
+          problems: confirmedProblems, // 返回确认的问题列表
         causes: allCauses,
-        strategies: [], // 不再生成策略
-      };
+          strategies: [], // 不再生成策略
+        };
     } catch (error) {
       console.error('AI Analysis Error:', error);
       return {
@@ -1320,7 +1320,7 @@ ${gapsText}
   - **商业推广因素**：渠道覆盖、推广策略、市场投入、WD分销率等（这是唯一可以提WD的维度，WD是渠道覆盖的重要指标）
   - **产品因素**：剂量规格、包装大小、产品特性、产品定位等（不要提WD，用domain knowledge分析产品本身的特点和定位）
   - **资源分配因素**：资源投入、渠道资源配置、市场策略重点等（不要只提WD，用domain knowledge分析资源分配策略）
-- **不要按四个因素分类列出**，而是自然地融合在一句连贯的statement中
+- **必须使用结构化格式**：不要一长串话，要用段落和小标题来组织内容，每个维度独立成段，使用**环境因素**、**商业推广因素**、**产品因素**、**资源分配因素**作为小标题，用换行符\\n分隔段落
 - **重要**：WD（分销率）数据只在商业推广因素中提及，其他维度要用domain knowledge来丰富分析，让故事更丰满
 - **可以基于domain knowledge补充合理的分析**，但要与查询数据结合
 - **⚠️ 重要：不要在statement中提及金额和份额数据**
@@ -1330,7 +1330,7 @@ ${gapsText}
   "causes": [
     {
       "problem": "剪刀差标题",
-      "statement": "总结性的分析陈述，必须包含环境因素、商业推广因素、产品因素、资源分配因素四个维度的分析，但不要按四个因素分类列出，而是自然地融合在一句连贯的statement中。WD（分销率）数据只在商业推广因素中提及，其他维度要用domain knowledge来丰富分析。⚠️ 重要：不要在statement中提及金额和份额数据。例如：'医院内，立普妥分子式内表现与可定持平，零售渠道内，立普妥表现低于可定。从环境因素看，立普妥主要是10mg中标省份（如安徽、合肥）的表现明显低，这些省份集采政策严格，仅10mg中标导致院内处方向零售转移受限，同时这些省份的零售市场准入门槛较高，对原研产品的接受度相对较低。从产品因素看，立普妥在10mg剂量数据量是20mg的近2倍，说明10mg是主要使用剂量，但立普妥在10mg剂量的产品定位和患者教育可能不足，导致患者对低剂量产品的认知和接受度有限，而高剂量产品虽然使用频率低但单次价值高，更容易获得市场关注。从商业推广因素看，立普妥10mg的WD为25.92，而可定10mg的WD为46.85，两者相差20.93个百分点，说明在10mg剂量的商业推广和渠道覆盖上，立普妥明显弱于可定，渠道铺货不足限制了产品的可及性。从资源分配因素看，立普妥可能将更多资源投入到高剂量产品的学术推广和医生教育上，而低剂量产品的市场教育和患者管理投入相对不足，相比之下，可定在10mg剂量上的市场投入更充分，包括患者教育、渠道建设和医生沟通，这解释了为什么可定表现更好。'"
+      "statement": "总结性的分析陈述，必须包含环境因素、商业推广因素、产品因素、资源分配因素四个维度的分析。必须使用结构化格式：用换行符\\n分隔段落，每个维度独立成段，使用**环境因素**、**商业推广因素**、**产品因素**、**资源分配因素**作为小标题。WD（分销率）数据只在商业推广因素中提及，其他维度要用domain knowledge来丰富分析。⚠️ 重要：不要在statement中提及金额和份额数据。例如：'医院内，立普妥分子式内表现与可定持平，零售渠道内，立普妥表现低于可定。\\n\\n**环境因素**：立普妥主要是10mg中标省份（如安徽、合肥）的表现明显低，这些省份集采政策严格，仅10mg中标导致院内处方向零售转移受限，同时这些省份的零售市场准入门槛较高，对原研产品的接受度相对较低。\\n\\n**产品因素**：立普妥在10mg剂量数据量是20mg的近2倍，说明10mg是主要使用剂量，但立普妥在10mg剂量的产品定位和患者教育可能不足，导致患者对低剂量产品的认知和接受度有限，而高剂量产品虽然使用频率低但单次价值高，更容易获得市场关注。\\n\\n**商业推广因素**：立普妥10mg的WD为25.92，而可定10mg的WD为46.85，两者相差20.93个百分点，说明在10mg剂量的商业推广和渠道覆盖上，立普妥明显弱于可定，渠道铺货不足限制了产品的可及性。\\n\\n**资源分配因素**：立普妥可能将更多资源投入到高剂量产品的学术推广和医生教育上，而低剂量产品的市场教育和患者管理投入相对不足，相比之下，可定在10mg剂量上的市场投入更充分，包括患者教育、渠道建设和医生沟通，这解释了为什么可定表现更好。'"
     }
   ]
 }
@@ -1345,7 +1345,7 @@ ${gapsText}
 
   const allCauses: Array<{ problem: string; statement: string }> = [];
   const problemsToAnalyze = scissorsGaps.slice(0, maxProblems);
-  
+    
   try {
     console.log('🔑 检查API Key:', DEEPSEEK_API_KEY ? '已配置' : '未配置（将使用模拟数据）');
     
@@ -1378,7 +1378,7 @@ ${singleGapText}
   - **商业推广因素**：渠道覆盖、推广策略、市场投入、WD分销率等（这是唯一可以提WD的维度，WD是渠道覆盖的重要指标）
   - **产品因素**：剂量规格、包装大小、产品特性、产品定位等（不要提WD，用domain knowledge分析产品本身的特点和定位）
   - **资源分配因素**：资源投入、渠道资源配置、市场策略重点等（不要只提WD，用domain knowledge分析资源分配策略）
-- **不要按四个因素分类列出**，而是自然地融合在一句连贯的statement中
+- **必须使用结构化格式**：不要一长串话，要用段落和小标题来组织内容，每个维度独立成段，使用**环境因素**、**商业推广因素**、**产品因素**、**资源分配因素**作为小标题，用换行符\\n分隔段落
 - 必须引用查询结果中的具体数据（如数值、省份名称等），但**不要提及金额和份额数据**
 - **重要**：WD（分销率）数据只在商业推广因素中提及，其他维度要用domain knowledge来丰富分析，让故事更丰满
 - 可以基于domain knowledge补充合理的分析，但要与查询数据结合
@@ -1386,8 +1386,16 @@ ${singleGapText}
 - **只分析这一个剪刀差，不要分析其他剪刀差**
 - **⚠️ 重要：不要在statement中提及金额（如"XX元"、"XX万元"）和份额（如"XX%"、"份额"等）数据**
 
-**statement示例格式**：
-"医院内，立普妥分子式内表现与可定持平，零售渠道内，立普妥表现低于可定。从环境因素看，立普妥主要是10mg中标省份（如安徽、合肥）的表现明显低，这些省份集采政策严格，仅10mg中标导致院内处方向零售转移受限，同时这些省份的零售市场准入门槛较高，对原研产品的接受度相对较低。从产品因素看，立普妥在10mg剂量数据量是20mg的近2倍，说明10mg是主要使用剂量，但立普妥在10mg剂量的产品定位和患者教育可能不足，导致患者对低剂量产品的认知和接受度有限，而高剂量产品虽然使用频率低但单次价值高，更容易获得市场关注。从商业推广因素看，立普妥10mg的WD为25.92，而可定10mg的WD为46.85，两者相差20.93个百分点，说明在10mg剂量的商业推广和渠道覆盖上，立普妥明显弱于可定，渠道铺货不足限制了产品的可及性。从资源分配因素看，立普妥可能将更多资源投入到高剂量产品的学术推广和医生教育上，而低剂量产品的市场教育和患者管理投入相对不足，相比之下，可定在10mg剂量上的市场投入更充分，包括患者教育、渠道建设和医生沟通，这解释了为什么可定表现更好。"
+**statement示例格式**（必须使用结构化格式，用换行符\\n分隔段落）：
+"医院内，立普妥分子式内表现与可定持平，零售渠道内，立普妥表现低于可定。
+
+**环境因素**：立普妥主要是10mg中标省份（如安徽、合肥）的表现明显低，这些省份集采政策严格，仅10mg中标导致院内处方向零售转移受限，同时这些省份的零售市场准入门槛较高，对原研产品的接受度相对较低。
+
+**产品因素**：立普妥在10mg剂量数据量是20mg的近2倍，说明10mg是主要使用剂量，但立普妥在10mg剂量的产品定位和患者教育可能不足，导致患者对低剂量产品的认知和接受度有限，而高剂量产品虽然使用频率低但单次价值高，更容易获得市场关注。
+
+**商业推广因素**：立普妥10mg的WD为25.92，而可定10mg的WD为46.85，两者相差20.93个百分点，说明在10mg剂量的商业推广和渠道覆盖上，立普妥明显弱于可定，渠道铺货不足限制了产品的可及性。
+
+**资源分配因素**：立普妥可能将更多资源投入到高剂量产品的学术推广和医生教育上，而低剂量产品的市场教育和患者管理投入相对不足，相比之下，可定在10mg剂量上的市场投入更充分，包括患者教育、渠道建设和医生沟通，这解释了为什么可定表现更好。"
 
 请严格按照JSON格式输出，只输出JSON，不要包含其他文字说明。格式为：
 \`\`\`json
@@ -1406,38 +1414,38 @@ ${singleGapText}
       }
       
       let responseText = '';
-      
-      if (!DEEPSEEK_API_KEY) {
-        console.log('⚠️ 未配置DEEPSEEK_API_KEY，使用模拟响应（不会调用查询函数）');
+    
+    if (!DEEPSEEK_API_KEY) {
+      console.log('⚠️ 未配置DEEPSEEK_API_KEY，使用模拟响应（不会调用查询函数）');
         // 模拟响应
-        responseText = JSON.stringify({
+      responseText = JSON.stringify({
           causes: [{
             problem: gap.title,
             statement: '基于数据库维度分析：通过省份维度分析发现，品牌表现主要受部分省份拖累，这些省份的共同点是集采政策严格、集采中阿托伐他汀仅有10mg中标。同时，通过产品特性维度分析发现，大包装产品渠道分销WD表现不佳（WD为44，对比其他省份60），导致院外承接院内处方能力差。',
           }],
-        });
-      } else {
-        // 支持Function Calling的多轮对话
-        const messages: Array<{
-          role: 'system' | 'user' | 'assistant' | 'tool';
-          content?: string;
-          tool_calls?: Array<{
-            id: string;
-            type: 'function';
-            function: {
-              name: string;
-              arguments: string;
-            };
-          }>;
-          tool_call_id?: string;
-          name?: string;
-        }> = [
-          { role: 'system', content: systemPrompt },
+      });
+    } else {
+      // 支持Function Calling的多轮对话
+      const messages: Array<{
+        role: 'system' | 'user' | 'assistant' | 'tool';
+        content?: string;
+        tool_calls?: Array<{
+          id: string;
+          type: 'function';
+          function: {
+            name: string;
+            arguments: string;
+          };
+        }>;
+        tool_call_id?: string;
+        name?: string;
+      }> = [
+        { role: 'system', content: systemPrompt },
           { role: 'user', content: userPromptForSingleGap }
-        ];
+      ];
 
-        const maxIterations = 15; // 增加迭代次数，给AI更多机会完成分析
-        let iteration = 0;
+      const maxIterations = 15; // 增加迭代次数，给AI更多机会完成分析
+      let iteration = 0;
 
       while (iteration < maxIterations) {
         const response = await axios.post(
@@ -1528,7 +1536,7 @@ ${singleGapText}
    - **商业推广因素**：渠道覆盖、推广策略、市场投入、WD分销率等（这是唯一可以提WD的维度，WD是渠道覆盖的重要指标）
    - **产品因素**：剂量规格、包装大小、产品特性、产品定位等（不要提WD，用domain knowledge分析产品本身的特点和定位）
    - **资源分配因素**：资源投入、渠道资源配置、市场策略重点等（不要只提WD，用domain knowledge分析资源分配策略）
-6. **不要按四个因素分类列出**，而是自然地融合在一句连贯的statement中
+6. **必须使用结构化格式**：不要一长串话，要用段落和小标题来组织内容，每个维度独立成段，使用**环境因素**、**商业推广因素**、**产品因素**、**资源分配因素**作为小标题，用换行符\\n分隔段落
 7. **重要**：WD（分销率）数据只在商业推广因素中提及，其他维度要用domain knowledge来丰富分析，让故事更丰满
 8. **可以基于domain knowledge补充合理的分析**，但要与查询数据结合
 9. **⚠️ 重要：不要在statement中提及金额（如"XX元"、"XX万元"）和份额（如"XX%"、"份额"等）数据**
@@ -1543,7 +1551,7 @@ ${allQueryResults.substring(0, 2000)}${allQueryResults.length > 2000 ? '\n...(�
   "causes": [
     {
       "problem": "${gap.title}",
-      "statement": "总结性的分析陈述，必须包含环境因素、商业推广因素、产品因素、资源分配因素四个维度的分析，但不要按四个因素分类列出，而是自然地融合在一句连贯的statement中。必须引用具体数据，但⚠️ 重要：不要在statement中提及金额和份额数据。例如：'医院内，立普妥分子式内表现与可定持平，零售渠道内，立普妥表现低于可定。从环境因素看，立普妥主要是10mg中标省份（如安徽、合肥）的表现明显低，这些省份集采政策严格，仅10mg中标导致院内处方向零售转移受限。从产品因素看，立普妥在10mg剂量数据量是20mg的近2倍，但10mg的WD仅为25.92，远低于20mg的58.32，显示产品剂量结构不平衡。从商业推广因素看，立普妥10mg的WD为25.92，而可定10mg的WD为46.85，两者相差20.93个百分点，说明在10mg剂量的商业推广和渠道覆盖上，立普妥明显弱于可定。从资源分配因素看，立普妥资源分配存在严重不平衡：在10mg剂量上投入不足（WD仅25.92），而在20mg上过度投入（WD达58.32），相比之下，可定在10mg剂量上资源投入更充分（WD46.85），这解释了为什么可定表现更好。'"
+      "statement": "总结性的分析陈述，必须包含环境因素、商业推广因素、产品因素、资源分配因素四个维度的分析。必须使用结构化格式：用换行符\\n分隔段落，每个维度独立成段，使用**环境因素**、**商业推广因素**、**产品因素**、**资源分配因素**作为小标题。必须引用具体数据，但⚠️ 重要：不要在statement中提及金额和份额数据。例如：'医院内，立普妥分子式内表现与可定持平，零售渠道内，立普妥表现低于可定。\\n\\n**环境因素**：立普妥主要是10mg中标省份（如安徽、合肥）的表现明显低，这些省份集采政策严格，仅10mg中标导致院内处方向零售转移受限。\\n\\n**产品因素**：立普妥在10mg剂量数据量是20mg的近2倍，说明10mg是主要使用剂量，但立普妥在10mg剂量的产品定位和患者教育可能不足，导致患者对低剂量产品的认知和接受度有限。\\n\\n**商业推广因素**：立普妥10mg的WD为25.92，而可定10mg的WD为46.85，两者相差20.93个百分点，说明在10mg剂量的商业推广和渠道覆盖上，立普妥明显弱于可定，渠道铺货不足限制了产品的可及性。\\n\\n**资源分配因素**：立普妥可能将更多资源投入到高剂量产品的学术推广和医生教育上，而低剂量产品的市场教育和患者管理投入相对不足，相比之下，可定在10mg剂量上的市场投入更充分，包括患者教育、渠道建设和医生沟通，这解释了为什么可定表现更好。'"
     }
   ]
 }
@@ -1608,7 +1616,7 @@ ${allQueryResults.substring(0, 2000)}${allQueryResults.length > 2000 ? '\n...(�
    - **商业推广因素**：渠道覆盖、推广策略、市场投入、WD分销率等（这是唯一可以提WD的维度，WD是渠道覆盖的重要指标）
    - **产品因素**：剂量规格、包装大小、产品特性、产品定位等（不要提WD，用domain knowledge分析产品本身的特点和定位）
    - **资源分配因素**：资源投入、渠道资源配置、市场策略重点等（不要只提WD，用domain knowledge分析资源分配策略）
-6. **不要按四个因素分类列出**，而是自然地融合在一句连贯的statement中
+6. **必须使用结构化格式**：不要一长串话，要用段落和小标题来组织内容，每个维度独立成段，使用**环境因素**、**商业推广因素**、**产品因素**、**资源分配因素**作为小标题，用换行符\\n分隔段落
 7. **重要**：WD（分销率）数据只在商业推广因素中提及，其他维度要用domain knowledge来丰富分析，让故事更丰满
 8. **可以基于domain knowledge补充合理的分析**，但要与查询数据结合
 9. **⚠️ 重要：不要在statement中提及金额（如"XX元"、"XX万元"）和份额（如"XX%"、"份额"等）数据**
@@ -1620,7 +1628,7 @@ ${allQueryResults.substring(0, 2000)}${allQueryResults.length > 2000 ? '\n...(�
   "causes": [
     {
       "problem": "${gap.title}",
-      "statement": "总结性的分析陈述，必须包含环境因素、商业推广因素、产品因素、资源分配因素四个维度的分析，但不要按四个因素分类列出，而是自然地融合在一句连贯的statement中，必须引用具体数据，但⚠️ 重要：不要在statement中提及金额和份额数据。WD（分销率）数据只在商业推广因素中提及，其他维度要用domain knowledge来丰富分析，让故事更丰满"
+      "statement": "总结性的分析陈述，必须包含环境因素、商业推广因素、产品因素、资源分配因素四个维度的分析。必须使用结构化格式：用换行符\\n分隔段落，每个维度独立成段，使用**环境因素**、**商业推广因素**、**产品因素**、**资源分配因素**作为小标题。必须引用具体数据，但⚠️ 重要：不要在statement中提及金额和份额数据。WD（分销率）数据只在商业推广因素中提及，其他维度要用domain knowledge来丰富分析，让故事更丰满"
     }
   ]
 }
@@ -1635,51 +1643,51 @@ ${allQueryResults.substring(0, 2000)}${allQueryResults.length > 2000 ? '\n...(�
         }
       }
 
-        if (iteration >= maxIterations) {
+      if (iteration >= maxIterations) {
           console.warn(`⚠️ Function calling reached max iterations（问题 ${i + 1}）`);
-          // 使用最后一次响应的内容
-          const lastMessage = messages[messages.length - 1];
-          responseText = lastMessage.content || '分析超时，请重试';
-        }
+        // 使用最后一次响应的内容
+        const lastMessage = messages[messages.length - 1];
+        responseText = lastMessage.content || '分析超时，请重试';
       }
+    }
 
-        // 尝试解析JSON响应
-        try {
+    // 尝试解析JSON响应
+    try {
           console.log(`📝 尝试解析AI响应（问题 ${i + 1}），响应长度:`, responseText.length);
           console.log(`📝 响应前500字符:`, responseText.substring(0, 500));
-          
-          // 尝试多种方式提取JSON
-          let jsonText = responseText;
-          
-          // 方法1: 尝试提取markdown代码块中的JSON
-          const jsonCodeBlockMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
-          if (jsonCodeBlockMatch) {
-            jsonText = jsonCodeBlockMatch[1];
-            console.log('✅ 从json代码块中提取JSON');
+      
+      // 尝试多种方式提取JSON
+      let jsonText = responseText;
+      
+      // 方法1: 尝试提取markdown代码块中的JSON
+      const jsonCodeBlockMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonCodeBlockMatch) {
+        jsonText = jsonCodeBlockMatch[1];
+        console.log('✅ 从json代码块中提取JSON');
+      } else {
+        // 方法2: 尝试提取普通代码块中的JSON
+        const codeBlockMatch = responseText.match(/```\s*([\s\S]*?)\s*```/);
+        if (codeBlockMatch) {
+          const codeContent = codeBlockMatch[1];
+          // 检查是否是JSON格式
+          if (codeContent.trim().startsWith('{')) {
+            jsonText = codeContent;
+            console.log('✅ 从代码块中提取JSON');
+          }
           } else {
-            // 方法2: 尝试提取普通代码块中的JSON
-            const codeBlockMatch = responseText.match(/```\s*([\s\S]*?)\s*```/);
-            if (codeBlockMatch) {
-              const codeContent = codeBlockMatch[1];
-              // 检查是否是JSON格式
-              if (codeContent.trim().startsWith('{')) {
-                jsonText = codeContent;
-                console.log('✅ 从代码块中提取JSON');
-              }
-            } else {
               // 方法3: 尝试直接查找JSON对象
-              const jsonObjectMatch = responseText.match(/\{[\s\S]*?\}/);
-              if (jsonObjectMatch) {
-                jsonText = jsonObjectMatch[0];
-                console.log('✅ 直接提取JSON对象');
-              }
+            const jsonObjectMatch = responseText.match(/\{[\s\S]*?\}/);
+            if (jsonObjectMatch) {
+              jsonText = jsonObjectMatch[0];
+              console.log('✅ 直接提取JSON对象');
             }
           }
-          
-          // 清理JSON文本
-          jsonText = jsonText.trim();
-          jsonText = jsonText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
-          
+      }
+      
+      // 清理JSON文本
+      jsonText = jsonText.trim();
+      jsonText = jsonText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
+      
           const result = JSON.parse(jsonText.trim());
           const causes = result.causes || [];
           
@@ -1692,10 +1700,10 @@ ${allQueryResults.substring(0, 2000)}${allQueryResults.length > 2000 ? '\n...(�
                 statement: cause.statement
               });
               console.log(`✅ 成功解析问题 ${i + 1} 的分析结果`);
-            } else {
+                } else {
               console.warn(`⚠️ 问题 ${i + 1} 的响应缺少statement字段`);
-            }
-          } else {
+                }
+              } else {
             console.warn(`⚠️ 问题 ${i + 1} 的响应中没有causes数组`);
           }
         } catch (parseError) {
@@ -1705,11 +1713,11 @@ ${allQueryResults.substring(0, 2000)}${allQueryResults.length > 2000 ? '\n...(�
         }
       }
       
-    return {
+      return {
       problems: problemsToAnalyze.map(g => g.title),
       causes: allCauses,
-      strategies: [], // 不再生成策略
-    };
+        strategies: [], // 不再生成策略
+      };
   } catch (error) {
     console.error('AI Analysis Error:', error);
     return {

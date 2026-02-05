@@ -1117,7 +1117,7 @@ function ProblemIdentification({
                       )}
                       <div className="font-semibold text-gray-900 mb-3">{cause.problem}</div>
                       {cause.statement && (
-                        <div className="text-sm text-gray-700 leading-relaxed">
+                        <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
                           {cause.statement}
                         </div>
                       )}
