@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { MarketDataPoint, DimensionConfig } from '../types/strategy';
 import { readExcelFile } from './excelService';
+import { LIPITOR_BACKGROUND } from '../data/productBackground';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY || '';
@@ -683,6 +684,13 @@ export async function analyzeScissorsGaps(
   const systemPrompt = `你是一名负责零售渠道心血管（降血脂）市场的资深数据分析专家。
 你将拿到${selectedBrand}及其竞争产品在零售渠道的详细市场数据。
 
+## 📚 产品背景资料（重要参考）
+在进行剪刀差分析时，请结合以下立普妥产品的背景资料，这些资料可以帮助你更好地理解市场环境、竞争结构、生意逻辑和渠道动作：
+
+${LIPITOR_BACKGROUND}
+
+**重要提示**：在识别剪刀差时，请结合这些背景资料来理解市场环境（如集采政策影响、竞争结构等），这有助于你更准确地识别有意义的剪刀差现象。
+
 ## 数据说明
 - 整体方法论是将市场切分为数个细分市场，分析其中"剪刀差"（剪刀差的定义见后文）
   - 如，降血脂市场可按照 "分子式×剂量"被切分为多个细分市场，例如"阿托伐他汀‑10mg""阿托伐他汀‑20mg"等，进一步分析各个细分市场内品牌的表现
@@ -878,6 +886,13 @@ export async function analyzeProblemsAndStrategies(
   if (confirmedProblems && confirmedProblems.length > 0) {
     const systemPromptForCauses = `你是一名负责零售渠道心血管（降血脂）市场的资深数据分析专家。
 基于已确认的问题列表，请完成成因分析。
+
+## 📚 产品背景资料（重要参考）
+在进行问题分析时，请结合以下立普妥产品的背景资料，这些资料可以帮助你更好地理解市场环境、竞争结构、生意逻辑和渠道动作：
+
+${LIPITOR_BACKGROUND}
+
+**重要提示**：在分析时，请结合这些背景资料来丰富你的domain knowledge，特别是在分析环境因素、产品因素和资源分配因素时，可以引用这些背景资料中的信息（如集采政策、竞争结构、渠道动作等）来让分析更加深入和准确。
 
 ## ⚠️ 重要：你必须使用工具函数查询数据库（强制要求）
 **在开始分析之前，你必须先调用以下工具函数查询数据库获取真实数据，不能直接推测！**
@@ -1129,6 +1144,13 @@ ${problem}
 
   const systemPrompt = `你是一名负责零售渠道心血管（降血脂）市场的资深数据分析专家。
 在此之前，你已经完成了针对${selectedBrand}及其竞争产品的"剪刀差分析"，系统识别出多个市场表现上的剪刀差现象。
+
+## 📚 产品背景资料（重要参考）
+在进行问题分析时，请结合以下立普妥产品的背景资料，这些资料可以帮助你更好地理解市场环境、竞争结构、生意逻辑和渠道动作：
+
+${LIPITOR_BACKGROUND}
+
+**重要提示**：在分析时，请结合这些背景资料来丰富你的domain knowledge，特别是在分析环境因素、产品因素和资源分配因素时，可以引用这些背景资料中的信息（如集采政策、竞争结构、渠道动作等）来让分析更加深入和准确。
 
 ## 你的任务
 针对特定的剪刀差项目，深挖其背后原因。
