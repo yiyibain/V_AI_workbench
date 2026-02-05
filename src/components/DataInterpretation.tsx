@@ -80,6 +80,9 @@ export default function DataInterpretation({
         const selected = selection.toString().trim();
         // 只处理长度大于3的选中文本
         if (selected.length < 3) {
+          setSelectedText('');
+          setSelectedSection(null);
+          setShowChatButton(false);
           return;
         }
         
@@ -149,9 +152,10 @@ export default function DataInterpretation({
               setSelectedSection(section);
               setShowChatButton(true);
             } else {
-              setSelectedText('');
-              setSelectedSection(null);
-              setShowChatButton(false);
+              // 即使在容器内但不在特定section，也允许追问（通用追问）
+              setSelectedText(selected);
+              setSelectedSection('general');
+              setShowChatButton(true);
             }
           } else {
             setSelectedText('');
@@ -164,13 +168,10 @@ export default function DataInterpretation({
         setTimeout(() => {
           const currentSelection = window.getSelection();
           if (!currentSelection || currentSelection.toString().trim().length === 0) {
-            setSelectedText('');
-            setSelectedSection(null);
-            setShowChatButton(false);
-            if (showChat) {
-              // 如果对话框已打开，不清除，让用户手动关闭
-            } else {
-              setShowChat(false);
+            if (!showChat) {
+              setSelectedText('');
+              setSelectedSection(null);
+              setShowChatButton(false);
             }
           }
         }, 200);
@@ -182,7 +183,10 @@ export default function DataInterpretation({
   const handleAskQuestion = () => {
     if (!selectedSection || !selectedText) return;
     
-    const sectionRef = selectedSection === 'anomaly' ? anomalySectionRef : summarySectionRef;
+    const sectionRef = selectedSection === 'anomaly' ? anomalySectionRef : 
+                      selectedSection === 'summary' ? summarySectionRef : 
+                      containerRef;
+    
     if (sectionRef.current) {
       const rect = sectionRef.current.getBoundingClientRect();
       
@@ -190,6 +194,14 @@ export default function DataInterpretation({
       setChatPosition({
         top: rect.top + 60, // 距离板块顶部60px
         left: Math.min(rect.right - 400, rect.left + 20), // 尽量靠右，但至少距离左边缘20px
+      });
+      setShowChat(true);
+    } else if (containerRef.current) {
+      // 如果特定section不存在，使用容器位置
+      const rect = containerRef.current.getBoundingClientRect();
+      setChatPosition({
+        top: rect.top + 60,
+        left: Math.min(rect.right - 400, rect.left + 20),
       });
       setShowChat(true);
     }
@@ -335,6 +347,19 @@ export default function DataInterpretation({
         </p>
       </div>
 
+      {/* 通用追问按钮 - 当选择不在特定section时显示在容器顶部 */}
+      {showChatButton && selectedSection === 'general' && selectedText && containerRef.current && (
+        <div className="sticky top-4 z-50 mb-4 flex justify-end">
+          <button
+            onClick={handleAskQuestion}
+            className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors shadow-lg animate-pulse"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span>追问选中内容</span>
+          </button>
+        </div>
+      )}
+
       {/* 异常数据解读 - 默认展开 */}
       <div ref={anomalySectionRef} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 relative">
         <div className="flex items-center justify-between mb-6">
@@ -342,7 +367,7 @@ export default function DataInterpretation({
             <AlertTriangle className="w-6 h-6 text-orange-500" />
             <h3 className="text-xl font-bold text-gray-900">异常数据解读</h3>
           </div>
-          {showChatButton && selectedSection === 'anomaly' && selectedText && (
+          {showChatButton && (selectedSection === 'anomaly' || selectedSection === 'general') && selectedText && (
             <button
               onClick={handleAskQuestion}
               className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors shadow-sm z-50 animate-pulse"
@@ -401,7 +426,7 @@ export default function DataInterpretation({
             <MessageCircle className="w-6 h-6 text-primary-500" />
             <h3 className="text-xl font-bold text-gray-900">AI总结分析</h3>
           </div>
-          {showChatButton && selectedSection === 'summary' && selectedText && (
+          {showChatButton && (selectedSection === 'summary' || selectedSection === 'general') && selectedText && (
             <button
               onClick={handleAskQuestion}
               className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors shadow-sm z-50 animate-pulse"

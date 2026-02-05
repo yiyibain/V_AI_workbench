@@ -151,6 +151,32 @@ export default function MekkoChart({
     return map;
   }, [allYValues]);
 
+  // 优化：预先建立索引，避免每次调用都遍历整个数组
+  const dataIndex = useMemo(() => {
+    if (!marketData.length || !selectedXAxisKey || !selectedYAxisKey || !getDimensionValue) {
+      return new Map<string, MarketDataPoint[]>();
+    }
+
+    // 建立索引：key = `${xAxisValue}|${yAxisValue}`, value = 该组合的所有数据点
+    const index = new Map<string, MarketDataPoint[]>();
+    
+    for (let i = 0; i < marketData.length; i++) {
+      const point = marketData[i];
+      const xValue = getDimensionValue(point, selectedXAxisKey);
+      const yValue = getDimensionValue(point, selectedYAxisKey);
+      
+      if (xValue && yValue) {
+        const key = `${xValue}|${yValue}`;
+        if (!index.has(key)) {
+          index.set(key, []);
+        }
+        index.get(key)!.push(point);
+      }
+    }
+    
+    return index;
+  }, [marketData, selectedXAxisKey, selectedYAxisKey, getDimensionValue]);
+
   // 计算CAGR和增速的辅助函数
   const calculateMetrics = useMemo(() => {
     if (!marketData.length || !selectedXAxisKey || !selectedYAxisKey || !getDimensionValue) {
@@ -197,16 +223,12 @@ export default function MekkoChart({
     return (xAxisValue: string, yAxisValue: string) => {
       // xAxisValue和yAxisValue用于筛选数据点
       if (!yearDim) {
-        // console.warn('[CAGR调试] 未找到年份维度，可用维度:', availableDimensions.map(d => d.label));
         return { cagr1924: null, growth2324: null };
       }
 
-      // 筛选出匹配的数据点（这个格子的所有数据，包括所有年份）
-      const matchingPoints = marketData.filter((point) => {
-        const xValue = getDimensionValue!(point, selectedXAxisKey);
-        const yValue = getDimensionValue!(point, selectedYAxisKey);
-        return xValue === xAxisValue && yValue === yAxisValue;
-      });
+      // 优化：使用索引快速查找，而不是遍历整个数组
+      const key = `${xAxisValue}|${yAxisValue}`;
+      const matchingPoints = dataIndex.get(key) || [];
 
       // 调试：检查所有匹配点的年份原始值
       // const allRawYearValues = new Set<string>();
@@ -341,7 +363,7 @@ export default function MekkoChart({
 
       return { cagr1924, growth2324 };
     };
-  }, [marketData, selectedXAxisKey, selectedYAxisKey, getDimensionValue, availableDimensions]);
+  }, [dataIndex, availableDimensions, getDimensionValue]);
 
   // 处理鼠标移动（tooltip和选择框）
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
