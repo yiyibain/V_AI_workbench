@@ -5,7 +5,8 @@ import {
   handleUserFeedback,
   completeStrategyAnalysis,
 } from '../../services/strategyAnalysisService';
-import { Loader2, CheckCircle2, AlertCircle, MessageSquare, Send, X } from 'lucide-react';
+import { useIndicator } from '../../contexts/IndicatorContext';
+import { Loader2, CheckCircle2, AlertCircle, MessageSquare, Send, X, Download } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface StrategyAnalysisFlowProps {
@@ -20,6 +21,8 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
   const [userFeedbackInput, setUserFeedbackInput] = useState<string>('');
   const [feedbackType, setFeedbackType] = useState<'A' | 'B' | 'C' | 'custom' | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const { addStrategy, setSelectedStrategyTab1 } = useIndicator();
 
   // 开始分析
   const handleStartAnalysis = async () => {
@@ -124,6 +127,83 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
     if (step === 4) return analysisResult.step4 ? 'completed' : 'pending';
     if (step === 5) return analysisResult.step5 ? 'completed' : 'pending';
     return 'pending';
+  };
+
+  // 生成策略标题（从策略分析结果中提取）
+  const generateStrategyTitle = (result: StrategyAnalysisResult): string => {
+    if (result.step5 && result.step5.strategyGoals.length > 0) {
+      // 使用第一个策略目标作为标题
+      const firstGoal = result.step5.strategyGoals[0].goal;
+      // 简化标题，提取关键信息
+      if (firstGoal.includes('立普妥')) {
+        // 尝试提取更具体的描述
+        if (firstGoal.includes('10mg') && firstGoal.includes('零售')) {
+          return '提升立普妥10mg零售份额';
+        } else if (firstGoal.includes('零售')) {
+          return '提升立普妥零售份额';
+        } else if (firstGoal.includes('医院')) {
+          return '提升立普妥医院份额';
+        }
+      }
+      // 如果包含其他关键词，提取前30个字符作为标题
+      return firstGoal.length > 30 ? firstGoal.substring(0, 30) + '...' : firstGoal;
+    }
+    // 如果没有策略目标，使用问题标题
+    return result.problemTitle.length > 30 ? result.problemTitle.substring(0, 30) + '...' : result.problemTitle;
+  };
+
+  // 导入策略到指标规划
+  const handleImportStrategy = () => {
+    if (!analysisResult || !analysisResult.step5) return;
+
+    const strategyTitle = generateStrategyTitle(analysisResult);
+    
+    // 生成策略描述
+    let strategyDescription = analysisResult.step5.finalSummary;
+    if (strategyDescription.length > 200) {
+      strategyDescription = strategyDescription.substring(0, 200) + '...';
+    }
+
+    // 提取重点领域和目标结果
+    const focusAreas: string[] = [];
+    const targetOutcomes: string[] = [];
+
+    // 从策略目标中提取信息
+    analysisResult.step5.strategyGoals.forEach((goal) => {
+      if (goal.goal.includes('零售') || goal.goal.includes('渠道')) {
+        focusAreas.push('零售渠道');
+      }
+      if (goal.goal.includes('医院') || goal.goal.includes('渗透')) {
+        focusAreas.push('医院渠道');
+      }
+      if (goal.goal.includes('份额') || goal.goal.includes('市场')) {
+        targetOutcomes.push('市场份额提升');
+      }
+    });
+
+    // 如果没有提取到，使用默认值
+    if (focusAreas.length === 0) {
+      focusAreas.push('市场拓展');
+    }
+    if (targetOutcomes.length === 0) {
+      targetOutcomes.push('业务增长');
+    }
+
+    // 创建策略对象
+    const newStrategy = {
+      id: `strategy-${Date.now()}`,
+      name: strategyTitle,
+      description: strategyDescription,
+      focusAreas: [...new Set(focusAreas)], // 去重
+      targetOutcomes: [...new Set(targetOutcomes)], // 去重
+    };
+
+    // 添加到指标规划
+    addStrategy(newStrategy);
+    setSelectedStrategyTab1(newStrategy);
+    
+    // 显示导入成功弹窗
+    setShowImportDialog(true);
   };
 
   return (
@@ -460,9 +540,18 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
       {/* 第五步：最终总结 */}
       {analysisResult?.step5 && (
         <div className="bg-white rounded-lg shadow-sm border-2 border-green-200 p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <CheckCircle2 className="w-5 h-5 text-green-600" />
-            <h3 className="text-lg font-bold text-gray-900">第五步：最终总结</h3>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-5 h-5 text-green-600" />
+              <h3 className="text-lg font-bold text-gray-900">第五步：最终总结</h3>
+            </div>
+            <button
+              onClick={handleImportStrategy}
+              className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              <span>导入到指标规划</span>
+            </button>
           </div>
 
           <div className="mb-6">
@@ -484,6 +573,40 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 导入成功弹窗 */}
+      {showImportDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
+                <h3 className="text-lg font-bold text-gray-900">导入成功</h3>
+              </div>
+              <button
+                onClick={() => setShowImportDialog(false)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-gray-700 mb-4">
+              当前策略已导入指标规划。策略标题：<strong>{analysisResult?.step5 ? generateStrategyTitle(analysisResult) : ''}</strong>
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              您可以在"指标规划"页面的"可用指标列表"中选择该策略，查看相关的潜在指标。
+            </p>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowImportDialog(false)}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              >
+                确定
+              </button>
             </div>
           </div>
         </div>

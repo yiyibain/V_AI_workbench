@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FileText, BarChart3, TrendingUp, Sparkles, AlertTriangle, Target, DollarSign } from 'lucide-react';
+import { FileText, TrendingUp, Sparkles, Target, DollarSign } from 'lucide-react';
 
 export default function Home() {
   const features = [
@@ -34,21 +34,6 @@ export default function Home() {
       color: 'bg-orange-500',
       link: '/bonus-setting',
       status: 'active',
-    },
-  ];
-
-  const modules = [
-    {
-      title: '全国层面各产品表现整体解读',
-      description: '分产品诊断报告：就数论数 + 数据解读，AI自动识别风险点',
-      link: '/product-analysis',
-      icon: AlertTriangle,
-    },
-    {
-      title: '省份间表现智能横向对比',
-      description: '各省表现诊断报告：健康度评分 + 核心维度对比',
-      link: '/province-analysis',
-      icon: BarChart3,
     },
   ];
 
@@ -117,50 +102,6 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 业务回顾模块 */}
-        <div className="mb-16">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">业务回顾</h2>
-              <p className="text-gray-600">
-                链接多源市场与经营数据，AI自动生成诊断报告，识别各产品风险点
-              </p>
-            </div>
-            <div className="hidden md:flex items-center space-x-2 text-sm text-green-600 bg-green-50 px-4 py-2 rounded-lg">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span>已上线</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {modules.map((module, index) => {
-              const Icon = module.icon;
-              return (
-                <Link
-                  key={index}
-                  to={module.link}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow group"
-                >
-                  <div className="flex items-start space-x-4">
-                    <div className="bg-primary-50 rounded-lg p-3 group-hover:bg-primary-100 transition-colors">
-                      <Icon className="w-6 h-6 text-primary-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
-                        {module.title}
-                      </h3>
-                      <p className="text-gray-600 text-sm mb-4">{module.description}</p>
-                      <div className="text-primary-600 text-sm font-medium">
-                        查看详情 →
-                      </div>
-                    </div>
-                  </div>
-                </Link>
               );
             })}
           </div>
