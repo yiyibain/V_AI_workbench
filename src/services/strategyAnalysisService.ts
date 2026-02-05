@@ -3,7 +3,6 @@ import {
   Opportunity,
   StrategyAnalysisResult,
   ProblemCauseAnalysis,
-  ProblemFact,
   StrategySolution,
   UserFeedback,
 } from '../types/strategy';
@@ -53,7 +52,7 @@ export async function analyzeProblemCauses(
 }`;
 
   const historicalContext = historicalAnalyses && historicalAnalyses.length > 0
-    ? `\n\n## 历史分析记录\n${historicalAnalyses.map((h, idx) => 
+    ? `\n\n## 历史分析记录\n${historicalAnalyses.map((h) => 
         `版本${h.version}（${h.updatedAt.toLocaleDateString()}）：\n` +
         `- 核心事实：${h.coreFacts.map(f => f.content).join('；')}\n` +
         `- 原因分析：${h.causeStatement}`
@@ -217,6 +216,7 @@ ${factsText}
         description: '需要基于具体数据进一步完善策略建议',
         specificActions: ['收集更多数据', '分析竞品策略', '制定行动计划'],
         strategicLevel: '需要进一步分析',
+        basedOnFacts: [],
       },
     ];
   }

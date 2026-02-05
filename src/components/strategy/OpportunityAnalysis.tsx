@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Opportunity, StrategyAnalysisResult } from '../../types/strategy';
+import { Opportunity } from '../../types/strategy';
 import { mockOpportunities } from '../../data/strategyMockData';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -8,7 +8,6 @@ import StrategyAnalysisFlow from './StrategyAnalysisFlow';
 export default function OpportunityAnalysis() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>(mockOpportunities);
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(opportunities[0] || null);
-  const [strategyAnalysisResult, setStrategyAnalysisResult] = useState<StrategyAnalysisResult | null>(null);
   const [showNewAnalysisFlow, setShowNewAnalysisFlow] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
   const [showAddOpportunity, setShowAddOpportunity] = useState(false);
@@ -397,7 +396,6 @@ export default function OpportunityAnalysis() {
               <StrategyAnalysisFlow
                 opportunity={selectedOpportunity}
                 onComplete={(result) => {
-                  setStrategyAnalysisResult(result);
                   console.log('分析完成:', result);
                 }}
               />

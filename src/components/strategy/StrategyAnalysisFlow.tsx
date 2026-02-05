@@ -16,7 +16,6 @@ interface StrategyAnalysisFlowProps {
 export default function StrategyAnalysisFlow({ opportunity, onComplete }: StrategyAnalysisFlowProps) {
   const [analysisResult, setAnalysisResult] = useState<StrategyAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [currentStep, setCurrentStep] = useState<number>(0);
   const [progressMessage, setProgressMessage] = useState<string>('');
   const [userFeedbackInput, setUserFeedbackInput] = useState<string>('');
   const [feedbackType, setFeedbackType] = useState<'A' | 'B' | 'C' | 'custom' | null>(null);
@@ -27,14 +26,12 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
     if (!opportunity) return;
 
     setIsAnalyzing(true);
-    setCurrentStep(1);
     setProgressMessage('正在启动分析流程...');
 
     try {
       const result = await performFullStrategyAnalysis(
         opportunity,
-        (step, message) => {
-          setCurrentStep(step);
+        (_step, message) => {
           setProgressMessage(message);
         }
       );
@@ -69,8 +66,7 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
         analysisResult,
         opportunity,
         feedback,
-        (step, message) => {
-          setCurrentStep(step);
+        (_step, message) => {
           setProgressMessage(message);
         }
       );
@@ -105,8 +101,7 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
       const completedResult = await completeStrategyAnalysis(
         targetResult,
         opportunity,
-        (step, message) => {
-          setCurrentStep(step);
+        (_step, message) => {
           setProgressMessage(message);
         }
       );
@@ -443,20 +438,20 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
 
           <div className="mb-4">
             <h4 className="font-semibold text-gray-900 mb-2">修订后的原因分析</h4>
-            <p className="text-sm text-gray-700 italic">{analysisResult.step4.revisedAnalysis.causeStatement}</p>
+            <p className="text-sm text-gray-700 italic">{analysisResult.step4.revisedAnalysis?.causeStatement || '暂无修订'}</p>
           </div>
 
           <div>
             <h4 className="font-semibold text-gray-900 mb-2">修订后的策略建议</h4>
             <div className="space-y-3">
-              {analysisResult.step4.revisedStrategies.map((strategy, idx) => (
+              {analysisResult.step4.revisedStrategies?.map((strategy, idx) => (
                 <div key={strategy.id} className="border-l-4 border-yellow-500 pl-4">
                   <div className="font-medium text-gray-900 mb-1">
                     策略建议 {idx + 1}：{strategy.title}
                   </div>
                   <p className="text-sm text-gray-700">{strategy.description}</p>
                 </div>
-              ))}
+              )) || <p className="text-sm text-gray-500">暂无修订策略</p>}
             </div>
           </div>
         </div>
