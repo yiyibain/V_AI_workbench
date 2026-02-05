@@ -6,6 +6,8 @@ import { clsx } from 'clsx';
 import { readExcelFile } from '../../services/excelService';
 import MekkoChart from './MekkoChart';
 import { analyzeScissorsGaps, analyzeProblemsAndStrategies } from '../../services/problemAnalysisService';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // 全局缓存，避免重复加载
 let excelDataCache: {
@@ -1117,8 +1119,10 @@ function ProblemIdentification({
                       )}
                       <div className="font-semibold text-gray-900 mb-3">{cause.problem}</div>
                       {cause.statement && (
-                        <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                          {cause.statement}
+                        <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {cause.statement}
+                          </ReactMarkdown>
                         </div>
                       )}
                     </div>

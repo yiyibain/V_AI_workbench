@@ -105,3 +105,71 @@ export interface StrategyDiscussion {
   }[];
   summary?: string; // AI总结
 }
+
+// 策略分析流程相关类型
+export interface ProblemFact {
+  id: string;
+  content: string; // 事实描述，包含定量信息
+  dataSource?: string; // 数据来源
+  relevance: string; // 与问题的相关性
+}
+
+export interface ProblemCauseAnalysis {
+  problemId: string;
+  problemTitle: string;
+  coreFacts: ProblemFact[]; // 1-3条关键事实依据
+  causeStatement: string; // 原因总结陈述
+  version: number; // 分析版本号
+  updatedAt: Date;
+}
+
+export interface StrategySolution {
+  id: string;
+  problemId: string;
+  title: string; // 策略标题
+  category: 'channel' | 'product' | 'resource' | 'promotion'; // 策略类别
+  description: string; // 策略描述
+  specificActions: string[]; // 具体可执行动作
+  strategicLevel: string; // 策略级表达
+  expectedOutcome?: string; // 预期效果
+  basedOnFacts: string[]; // 基于的事实依据ID
+}
+
+export interface UserFeedback {
+  id: string;
+  problemId: string;
+  feedbackType: 'A' | 'B' | 'C' | 'custom'; // A: 基本符合, B: 部分不合理, C: 差距较大, custom: 自定义
+  content: string; // 反馈内容
+  clarification?: string; // 澄清的问题
+  suggestedCorrection?: string; // 建议的正确结论
+  timestamp: Date;
+}
+
+export interface StrategyAnalysisResult {
+  problemId: string;
+  problemTitle: string;
+  step1: ProblemCauseAnalysis; // 第一步：原因梳理
+  step2: StrategySolution[]; // 第二步：解决方案（2-3条）
+  step3: {
+    userFeedback?: UserFeedback;
+    needsClarification: boolean;
+    clarificationQuestions?: string[];
+  }; // 第三步：用户交互校准
+  step4?: {
+    revisedAnalysis?: ProblemCauseAnalysis;
+    revisedStrategies?: StrategySolution[];
+    iterationCount: number;
+  }; // 第四步：基于用户输入的修改
+  step5?: {
+    finalSummary: string;
+    allStrategies: StrategySolution[];
+    strategyGoals: Array<{
+      strategyId: string;
+      goal: string;
+      implementation: string;
+    }>;
+  }; // 第五步：最终总结
+  status: 'analyzing' | 'waiting_feedback' | 'revising' | 'completed';
+  createdAt: Date;
+  updatedAt: Date;
+}
