@@ -61,7 +61,28 @@ export async function getPotentialIndicatorsByStrategy(
   // 模拟API调用延迟
   await new Promise((resolve) => setTimeout(resolve, 500));
 
-  const strategy = mockStrategies.find((s) => s.id === strategyId);
+  // 优先从localStorage加载导入的策略
+  let allStrategies = [...mockStrategies];
+  try {
+    const storedStrategies = localStorage.getItem('indicatorPlanningStrategies');
+    if (storedStrategies) {
+      const parsed = JSON.parse(storedStrategies);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // 合并导入的策略和mock策略，导入的策略优先
+        const importedMap = new Map(parsed.map((s: Strategy) => [s.id, s]));
+        mockStrategies.forEach(s => {
+          if (!importedMap.has(s.id)) {
+            importedMap.set(s.id, s);
+          }
+        });
+        allStrategies = Array.from(importedMap.values());
+      }
+    }
+  } catch (error) {
+    console.error('加载导入的策略失败:', error);
+  }
+
+  const strategy = allStrategies.find((s) => s.id === strategyId);
   if (!strategy) {
     return [];
   }
@@ -343,6 +364,19 @@ ${options?.nationalSalesGrowth ? `全国销售增速目标：${options.nationalS
 export async function getAllStrategies(): Promise<Strategy[]> {
   // 模拟API调用延迟
   await new Promise((resolve) => setTimeout(resolve, 200));
+
+  // 优先从localStorage加载导入的策略
+  try {
+    const storedStrategies = localStorage.getItem('indicatorPlanningStrategies');
+    if (storedStrategies) {
+      const parsed = JSON.parse(storedStrategies);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (error) {
+    console.error('加载导入的策略失败:', error);
+  }
 
   return mockStrategies;
 }

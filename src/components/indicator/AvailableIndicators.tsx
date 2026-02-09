@@ -39,20 +39,55 @@ export default function AvailableIndicators() {
     setSelectedStrategyTab1,
     getCachedPotentialIndicators,
     setCachedPotentialIndicators,
+    clearCachedPotentialIndicators,
   } = useIndicator();
 
   const selectedStrategy = selectedStrategyTab1;
 
   useEffect(() => {
     loadData();
+    
+    // 检查是否有新导入的策略
+    const checkForNewStrategies = () => {
+      const hasNew = localStorage.getItem('hasNewIndicatorStrategies');
+      if (hasNew === 'true') {
+        // 重新加载策略列表
+        getAllStrategies().then((newStrategies) => {
+          setStrategies(newStrategies);
+          localStorage.removeItem('hasNewIndicatorStrategies');
+        });
+      }
+    };
+    
+    checkForNewStrategies();
+    
+    // 监听storage事件（跨标签页同步）
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'indicatorPlanningStrategies' || e.key === 'hasNewIndicatorStrategies') {
+        checkForNewStrategies();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // 定期检查（处理同标签页的情况）
+    const interval = setInterval(checkForNewStrategies, 1000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
     if (selectedStrategy) {
-      loadPotentialIndicators(selectedStrategy.id, false);
+      // 点击策略时，强制刷新以触发AI实时筛选（清除缓存）
+      clearCachedPotentialIndicators(selectedStrategy.id);
+      loadPotentialIndicators(selectedStrategy.id, true); // 强制刷新
     } else {
       setPotentialIndicators([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStrategy]);
 
   const loadData = async () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import OpportunityAnalysis from '../components/strategy/OpportunityAnalysis';
 import StrategyCoCreation from '../components/strategy/StrategyCoCreation';
 import { Target, Users } from 'lucide-react';
@@ -7,7 +7,34 @@ import { clsx } from 'clsx';
 type TabType = 'opportunity' | 'coCreation';
 
 export default function StrategyPlanning() {
-  const [activeTab, setActiveTab] = useState<TabType>('opportunity');
+  // 检查是否有需要切换到策略共创的标记
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const switchToCoCreation = localStorage.getItem('switchToCoCreation');
+    if (switchToCoCreation === 'true') {
+      localStorage.removeItem('switchToCoCreation');
+      return 'coCreation';
+    }
+    return 'opportunity';
+  });
+
+  // 监听localStorage变化（处理同标签页跳转的情况）
+  useEffect(() => {
+    const checkSwitchTab = () => {
+      const switchToCoCreation = localStorage.getItem('switchToCoCreation');
+      if (switchToCoCreation === 'true') {
+        setActiveTab('coCreation');
+        localStorage.removeItem('switchToCoCreation');
+      }
+    };
+
+    // 初始检查
+    checkSwitchTab();
+
+    // 定期检查（处理同标签页的情况）
+    const interval = setInterval(checkSwitchTab, 500);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const tabs = [
     {

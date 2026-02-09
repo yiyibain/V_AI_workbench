@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Opportunity, StrategyAnalysisResult, UserFeedback } from '../../types/strategy';
+import { useNavigate } from 'react-router-dom';
+import { Opportunity, StrategyAnalysisResult, UserFeedback, StrategyProposal } from '../../types/strategy';
 import {
   performFullStrategyAnalysis,
   handleUserFeedback,
   completeStrategyAnalysis,
 } from '../../services/strategyAnalysisService';
-import { useIndicator } from '../../contexts/IndicatorContext';
-import { Loader2, CheckCircle2, AlertCircle, MessageSquare, Send, X, Download } from 'lucide-react';
+import { Loader2, CheckCircle2, MessageSquare, Send, X, Download } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface StrategyAnalysisFlowProps {
@@ -15,6 +15,7 @@ interface StrategyAnalysisFlowProps {
 }
 
 export default function StrategyAnalysisFlow({ opportunity, onComplete }: StrategyAnalysisFlowProps) {
+  const navigate = useNavigate();
   const [analysisResult, setAnalysisResult] = useState<StrategyAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progressMessage, setProgressMessage] = useState<string>('');
@@ -22,7 +23,6 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
   const [feedbackType, setFeedbackType] = useState<'A' | 'B' | 'C' | 'custom' | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
-  const { addStrategy, setSelectedStrategyTab1 } = useIndicator();
 
   // 开始分析
   const handleStartAnalysis = async () => {
@@ -62,33 +62,47 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
     };
 
     setIsAnalyzing(true);
-    setProgressMessage('正在根据反馈调整分析...');
+    setProgressMessage('正在根据反馈重新分析...');
 
     try {
       const updatedResult = await handleUserFeedback(
         analysisResult,
         opportunity,
         feedback,
-        (_step, message) => {
-          setProgressMessage(message);
+        (step, message) => {
+          // 根据步骤显示具体的进度消息
+          if (step === 1) {
+            setProgressMessage('正在重新生成步骤1：问题对应原因再梳理...');
+          } else if (step === 2) {
+            setProgressMessage('正在重新生成步骤2：提出解决方案...');
+          } else if (step === 3) {
+            setProgressMessage('等待用户反馈...');
+          } else {
+            setProgressMessage(message);
+          }
         }
       );
 
       setAnalysisResult(updatedResult);
       setIsAnalyzing(false);
+      setProgressMessage(''); // 清除进度消息
 
       // 如果用户选择A，直接完成
       if (feedbackType === 'A') {
         await handleCompleteAnalysis(updatedResult);
       } else {
-        // 否则显示新的反馈表单
+        // 否则显示新的反馈表单（步骤1和2已更新，现在等待新的反馈）
         setUserFeedbackInput('');
         setFeedbackType(null);
         setShowFeedbackForm(true);
+        setProgressMessage(''); // 确保清除进度消息
       }
     } catch (error) {
       console.error('处理反馈失败:', error);
       setIsAnalyzing(false);
+      setProgressMessage(`处理反馈失败：${error instanceof Error ? error.message : '未知错误'}，请重试`);
+      // 保持反馈表单显示，让用户可以重试
+      setShowFeedbackForm(true);
     }
   };
 
@@ -121,10 +135,22 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
 
   const getStepStatus = (step: number) => {
     if (!analysisResult) return 'pending';
-    if (step === 1) return analysisResult.step1 ? 'completed' : 'pending';
-    if (step === 2) return analysisResult.step2.length > 0 ? 'completed' : 'pending';
-    if (step === 3) return analysisResult.step3.userFeedback ? 'completed' : analysisResult.status === 'waiting_feedback' ? 'active' : 'pending';
-    if (step === 4) return analysisResult.step4 ? 'completed' : 'pending';
+    if (step === 1) {
+      // 如果正在分析且是步骤1，显示为active
+      if (isAnalyzing && progressMessage.includes('步骤1')) return 'active';
+      return analysisResult.step1 ? 'completed' : 'pending';
+    }
+    if (step === 2) {
+      // 如果正在分析且是步骤2，显示为active
+      if (isAnalyzing && progressMessage.includes('步骤2')) return 'active';
+      return analysisResult.step2.length > 0 ? 'completed' : 'pending';
+    }
+    if (step === 3) {
+      // 如果正在分析且是步骤3，显示为active
+      if (isAnalyzing && progressMessage.includes('等待用户反馈')) return 'active';
+      return analysisResult.step3.userFeedback ? 'completed' : analysisResult.status === 'waiting_feedback' ? 'active' : 'pending';
+    }
+    if (step === 4) return 'pending'; // 步骤4不再单独显示，已整合到步骤1和2的重新执行中
     if (step === 5) return analysisResult.step5 ? 'completed' : 'pending';
     return 'pending';
   };
@@ -152,58 +178,96 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
     return result.problemTitle.length > 30 ? result.problemTitle.substring(0, 30) + '...' : result.problemTitle;
   };
 
-  // 导入策略到指标规划
+  // 导入策略到策略共创
   const handleImportStrategy = () => {
     if (!analysisResult || !analysisResult.step5) return;
 
-    const strategyTitle = generateStrategyTitle(analysisResult);
+    const step5 = analysisResult.step5;
     
-    // 生成策略描述
-    let strategyDescription = analysisResult.step5.finalSummary;
-    if (strategyDescription.length > 200) {
-      strategyDescription = strategyDescription.substring(0, 200) + '...';
-    }
+    // 将第五步的输出转换为策略共创的格式（StrategyProposal）
+    const strategyProposals: StrategyProposal[] = step5.strategyGoals.map((goal, index) => {
+      // 从实现方式中提取具体行动
+      const actions = goal.implementation
+        .split(/[。；\n]/)
+        .map((action) => action.trim())
+        .filter((action) => action.length > 0);
 
-    // 提取重点领域和目标结果
-    const focusAreas: string[] = [];
-    const targetOutcomes: string[] = [];
-
-    // 从策略目标中提取信息
-    analysisResult.step5.strategyGoals.forEach((goal) => {
-      if (goal.goal.includes('零售') || goal.goal.includes('渠道')) {
-        focusAreas.push('零售渠道');
-      }
-      if (goal.goal.includes('医院') || goal.goal.includes('渗透')) {
-        focusAreas.push('医院渠道');
-      }
-      if (goal.goal.includes('份额') || goal.goal.includes('市场')) {
-        targetOutcomes.push('市场份额提升');
-      }
+      return {
+        id: `sp-${Date.now()}-${index}`,
+        title: goal.goal.length > 50 ? goal.goal.substring(0, 50) + '...' : goal.goal,
+        description: goal.goal, // 使用策略目标作为描述
+        opportunityId: opportunity.id, // 关联的机会点
+        priority: index + 1,
+        status: 'draft' as const,
+        actions: actions.length > 0 ? actions : [goal.implementation], // 具体行动
+        expectedOutcome: step5.finalSummary, // 使用最终总结作为预期效果
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isFromAI: true, // 标记为AI生成
+      };
     });
 
-    // 如果没有提取到，使用默认值
-    if (focusAreas.length === 0) {
-      focusAreas.push('市场拓展');
-    }
-    if (targetOutcomes.length === 0) {
-      targetOutcomes.push('业务增长');
+    // 如果只有一个策略目标，也可以创建一个综合的策略建议
+    if (strategyProposals.length === 0 && step5.finalSummary) {
+      const strategyTitle = generateStrategyTitle(analysisResult);
+      strategyProposals.push({
+        id: `sp-${Date.now()}`,
+        title: strategyTitle,
+        description: step5.finalSummary,
+        opportunityId: opportunity.id,
+        priority: 1,
+        status: 'draft',
+        actions: analysisResult.step2.map((s) => s.title), // 使用第二步的策略标题作为行动
+        expectedOutcome: step5.finalSummary,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isFromAI: true,
+      });
     }
 
-    // 创建策略对象
-    const newStrategy = {
-      id: `strategy-${Date.now()}`,
-      name: strategyTitle,
-      description: strategyDescription,
-      focusAreas: [...new Set(focusAreas)], // 去重
-      targetOutcomes: [...new Set(targetOutcomes)], // 去重
-    };
+    // 存储到localStorage，供策略共创页面读取
+    try {
+      const existingProposals = localStorage.getItem('strategyProposals');
+      let allProposals: StrategyProposal[] = [];
+      
+      if (existingProposals) {
+        try {
+          const parsed = JSON.parse(existingProposals);
+          // 转换日期字符串为Date对象
+          allProposals = parsed.map((p: any) => ({
+            ...p,
+            createdAt: new Date(p.createdAt),
+            updatedAt: new Date(p.updatedAt),
+          }));
+        } catch (e) {
+          console.warn('解析已有策略建议失败，将创建新列表', e);
+        }
+      }
 
-    // 添加到指标规划
-    addStrategy(newStrategy);
-    setSelectedStrategyTab1(newStrategy);
-    
-    // 显示导入成功弹窗
-    setShowImportDialog(true);
+      // 添加新的策略建议，并更新优先级
+      const maxPriority = allProposals.length > 0 
+        ? Math.max(...allProposals.map((p) => p.priority))
+        : 0;
+      
+      const newProposalsWithPriority = strategyProposals.map((p, idx) => ({
+        ...p,
+        priority: maxPriority + idx + 1,
+      }));
+
+      allProposals = [...allProposals, ...newProposalsWithPriority];
+      
+      // 保存到localStorage
+      localStorage.setItem('strategyProposals', JSON.stringify(allProposals));
+      
+      // 设置标记，表示有新策略导入
+      localStorage.setItem('hasNewStrategyProposals', 'true');
+      
+      // 显示导入成功弹窗
+      setShowImportDialog(true);
+    } catch (error) {
+      console.error('导入策略到策略共创失败:', error);
+      alert('导入失败，请重试');
+    }
   };
 
   return (
@@ -250,7 +314,7 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
             { step: 1, title: '问题对应原因再梳理', description: '整合信息，统一表述，列出关键事实依据' },
             { step: 2, title: '提出解决方案', description: '基于原因分析，提出2-3条具体可落地的策略建议' },
             { step: 3, title: '与用户的交互校准', description: '主动向用户确认分析是否满足需求' },
-            { step: 4, title: '基于用户输入修改策略', description: '根据用户反馈调整分析和策略' },
+            { step: 4, title: '基于用户输入修改策略', description: '根据用户反馈重新执行步骤1和步骤2' },
             { step: 5, title: '输出并总结所有策略', description: '明确策略目标和实现方式' },
           ].map(({ step, title, description }) => {
             const status = getStepStatus(step);
@@ -506,36 +570,6 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
         </div>
       )}
 
-      {/* 第四步：修订后的分析（如果有） */}
-      {analysisResult?.step4 && (
-        <div className="bg-white rounded-lg shadow-sm border border-yellow-200 p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <AlertCircle className="w-5 h-5 text-yellow-600" />
-            <h3 className="text-lg font-bold text-gray-900">
-              第四步：基于用户修正后的更新（第{analysisResult.step4.iterationCount}次迭代）
-            </h3>
-          </div>
-
-          <div className="mb-4">
-            <h4 className="font-semibold text-gray-900 mb-2">修订后的原因分析</h4>
-            <p className="text-sm text-gray-700 italic">{analysisResult.step4.revisedAnalysis?.causeStatement || '暂无修订'}</p>
-          </div>
-
-          <div>
-            <h4 className="font-semibold text-gray-900 mb-2">修订后的策略建议</h4>
-            <div className="space-y-3">
-              {analysisResult.step4.revisedStrategies?.map((strategy, idx) => (
-                <div key={strategy.id} className="border-l-4 border-yellow-500 pl-4">
-                  <div className="font-medium text-gray-900 mb-1">
-                    策略建议 {idx + 1}：{strategy.title}
-                  </div>
-                  <p className="text-sm text-gray-700">{strategy.description}</p>
-                </div>
-              )) || <p className="text-sm text-gray-500">暂无修订策略</p>}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 第五步：最终总结 */}
       {analysisResult?.step5 && (
@@ -550,7 +584,7 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
               className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
             >
               <Download className="w-4 h-4" />
-              <span>导入到指标规划</span>
+              <span>导入到策略共创</span>
             </button>
           </div>
 
@@ -595,17 +629,28 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
               </button>
             </div>
             <p className="text-gray-700 mb-4">
-              当前策略已导入指标规划。策略标题：<strong>{analysisResult?.step5 ? generateStrategyTitle(analysisResult) : ''}</strong>
+              策略已成功导入到策略共创。共导入 <strong>{analysisResult?.step5?.strategyGoals.length || 0}</strong> 条策略建议。
             </p>
             <p className="text-sm text-gray-500 mb-4">
-              您可以在"指标规划"页面的"可用指标列表"中选择该策略，查看相关的潜在指标。
+              您可以在"策略辅助"页面的"策略共创"标签页中查看、编辑和调整这些策略建议的优先级。
             </p>
-            <div className="flex justify-end">
+            <div className="flex justify-end space-x-2">
               <button
                 onClick={() => setShowImportDialog(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              >
+                稍后查看
+              </button>
+              <button
+                onClick={() => {
+                  setShowImportDialog(false);
+                  // 跳转到策略规划页面，并设置标记以切换到策略共创标签
+                  localStorage.setItem('switchToCoCreation', 'true');
+                  navigate('/strategy-planning');
+                }}
                 className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
               >
-                确定
+                前往策略共创
               </button>
             </div>
           </div>

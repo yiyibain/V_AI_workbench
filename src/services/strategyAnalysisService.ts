@@ -16,7 +16,8 @@ const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY || '';
  */
 export async function analyzeProblemCauses(
   opportunity: Opportunity,
-  historicalAnalyses?: ProblemCauseAnalysis[]
+  historicalAnalyses?: ProblemCauseAnalysis[],
+  userFeedback?: UserFeedback
 ): Promise<ProblemCauseAnalysis> {
   const systemPrompt = `你是一名负责零售渠道心血管（降血脂）市场的资深数据分析专家。
 你的任务是针对特定问题，整合所有相关信息，梳理出关键的事实依据和原因分析。
@@ -59,13 +60,23 @@ export async function analyzeProblemCauses(
       ).join('\n\n')}`
     : '';
 
+  const feedbackContext = userFeedback ? `
+  
+## 用户反馈与倾向
+**反馈类型**：${userFeedback.feedbackType}
+**反馈内容**：${userFeedback.content}
+${userFeedback.clarification ? `**澄清问题**：${userFeedback.clarification}` : ''}
+${userFeedback.suggestedCorrection ? `**建议的正确结论**：${userFeedback.suggestedCorrection}` : ''}
+
+**重要提示**：请充分考虑用户的反馈和倾向，在分析中体现用户的观点和判断。` : '';
+
   const userPrompt = `请分析以下问题：
 
 **问题标题**：${opportunity.title}
 **问题描述**：${opportunity.description}
 **细分市场**：${opportunity.marketSegment}
 **当前缺口**：${opportunity.currentGap}
-${historicalContext}
+${historicalContext}${feedbackContext}
 
 请完成第一步：问题对应原因再梳理，输出关键事实依据和原因分析。`;
 
@@ -126,7 +137,8 @@ ${historicalContext}
  */
 export async function generateStrategySolutions(
   opportunity: Opportunity,
-  causeAnalysis: ProblemCauseAnalysis
+  causeAnalysis: ProblemCauseAnalysis,
+  userFeedback?: UserFeedback
 ): Promise<StrategySolution[]> {
   const systemPrompt = `你是一名负责零售渠道心血管（降血脂）市场的资深策略规划专家。
 你的任务是基于问题原因分析，提出具体可落地且能上升到策略级的解决方案。
@@ -166,6 +178,16 @@ export async function generateStrategySolutions(
     `${idx + 1}. ${f.content}（来源：${f.dataSource}，相关性：${f.relevance}）`
   ).join('\n');
 
+  const feedbackContext = userFeedback ? `
+  
+## 用户反馈与倾向
+**反馈类型**：${userFeedback.feedbackType}
+**反馈内容**：${userFeedback.content}
+${userFeedback.clarification ? `**澄清问题**：${userFeedback.clarification}` : ''}
+${userFeedback.suggestedCorrection ? `**建议的正确结论**：${userFeedback.suggestedCorrection}` : ''}
+
+**重要提示**：请充分考虑用户的反馈和倾向，在策略建议中体现用户的观点和判断。` : '';
+
   const userPrompt = `请为以下问题提出解决方案：
 
 **问题**：${opportunity.title}
@@ -175,7 +197,7 @@ export async function generateStrategySolutions(
 ${causeAnalysis.causeStatement}
 
 **关键事实依据**：
-${factsText}
+${factsText}${feedbackContext}
 
 请完成第二步：提出2-3条解决方案，每条方案需同时满足具体可执行和策略级表达两个要求。`;
 
@@ -536,38 +558,59 @@ export async function handleUserFeedback(
     return result;
   }
 
-  // 如果用户选择B或C，进入第四步：修改策略
-  onProgress?.(4, '正在根据反馈调整分析...');
-  const iterationCount = result.step4?.iterationCount || 0;
-  const revised = await reviseAnalysisBasedOnFeedback(
-    opportunity,
-    result.step1,
-    result.step2,
-    userFeedback,
-    iterationCount + 1
-  );
+  // 如果用户选择B或C，重新执行步骤1和步骤2，在prompt中带入用户反馈
+  try {
+    onProgress?.(1, '正在重新生成步骤1：问题对应原因再梳理...');
+    
+    // 重新执行第一步：问题对应原因再梳理（带入用户反馈）
+    const revisedAnalysis = await analyzeProblemCauses(
+      opportunity,
+      [result.step1], // 将之前的分析作为历史记录
+      userFeedback // 传入用户反馈
+    );
+    
+    // 验证分析结果
+    if (!revisedAnalysis || !revisedAnalysis.coreFacts || revisedAnalysis.coreFacts.length === 0) {
+      throw new Error('重新分析失败：未获得有效的分析结果');
+    }
+    
+    result.step1 = revisedAnalysis;
+    result.updatedAt = new Date();
 
-  result.step4 = {
-    revisedAnalysis: revised.revisedAnalysis,
-    revisedStrategies: revised.revisedStrategies,
-    iterationCount: iterationCount + 1,
-  };
+    // 重新执行第二步：提出解决方案（带入用户反馈）
+    onProgress?.(2, '正在重新生成步骤2：提出解决方案...');
+    const revisedStrategies = await generateStrategySolutions(
+      opportunity,
+      revisedAnalysis,
+      userFeedback // 传入用户反馈
+    );
+    
+    // 验证策略结果
+    if (!revisedStrategies || revisedStrategies.length === 0) {
+      throw new Error('重新生成策略失败：未获得有效的策略建议');
+    }
+    
+    result.step2 = revisedStrategies;
+    result.updatedAt = new Date();
 
-  // 更新当前使用的分析和策略
-  result.step1 = revised.revisedAnalysis;
-  result.step2 = revised.revisedStrategies;
+    // 再次请求用户反馈（不显示进度，因为已经完成）
+    const feedbackInfo = await requestUserFeedback(opportunity, revisedAnalysis, revisedStrategies);
+    result.step3 = {
+      userFeedback: undefined, // 清空之前的反馈，等待新的反馈
+      needsClarification: true,
+      clarificationQuestions: feedbackInfo.clarificationQuestions || [],
+    };
+    result.status = 'waiting_feedback';
+    result.updatedAt = new Date();
 
-  // 再次请求用户反馈
-  const feedbackInfo = await requestUserFeedback(opportunity, revised.revisedAnalysis, revised.revisedStrategies);
-  result.step3 = {
-    userFeedback: undefined, // 清空之前的反馈，等待新的反馈
-    needsClarification: true,
-    clarificationQuestions: feedbackInfo.clarificationQuestions,
-  };
-  result.status = 'waiting_feedback';
-  result.updatedAt = new Date();
-
-  return result;
+    return result;
+  } catch (error) {
+    console.error('根据反馈重新分析失败:', error);
+    // 如果重新分析失败，保持原有状态，但标记为等待反馈
+    result.status = 'waiting_feedback';
+    result.updatedAt = new Date();
+    throw error; // 重新抛出错误，让UI层处理
+  }
 }
 
 /**

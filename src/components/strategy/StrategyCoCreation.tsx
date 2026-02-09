@@ -1,14 +1,79 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StrategyProposal } from '../../types/strategy';
+import { Strategy } from '../../types/indicator';
 import { mockStrategyProposals } from '../../data/strategyMockData';
-import { Edit2, Trash2, Copy, GripVertical, Plus, Save } from 'lucide-react';
+import { Edit2, Trash2, Copy, GripVertical, Plus, Save, CheckCircle } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 export default function StrategyCoCreation() {
-  const [strategies, setStrategies] = useState<StrategyProposal[]>(mockStrategyProposals);
+  const navigate = useNavigate();
+  
+  // 从localStorage读取策略建议，如果有新导入的则使用，否则使用mock数据
+  const loadStrategies = (): StrategyProposal[] => {
+    try {
+      const stored = localStorage.getItem('strategyProposals');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // 转换日期字符串为Date对象
+        return parsed.map((p: any) => ({
+          ...p,
+          createdAt: new Date(p.createdAt),
+          updatedAt: new Date(p.updatedAt),
+        }));
+      }
+    } catch (error) {
+      console.error('读取策略建议失败:', error);
+    }
+    return mockStrategyProposals;
+  };
+
+  const [strategies, setStrategies] = useState<StrategyProposal[]>(loadStrategies);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingStrategy, setEditingStrategy] = useState<StrategyProposal | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  // 监听localStorage变化，如果有新策略导入则更新列表
+  useEffect(() => {
+    const checkForNewStrategies = () => {
+      const hasNew = localStorage.getItem('hasNewStrategyProposals');
+      if (hasNew === 'true') {
+        const loaded = loadStrategies();
+        setStrategies(loaded);
+        localStorage.removeItem('hasNewStrategyProposals'); // 清除标记
+      }
+    };
+
+    // 初始检查
+    checkForNewStrategies();
+
+    // 监听storage事件（跨标签页同步）
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'strategyProposals' || e.key === 'hasNewStrategyProposals') {
+        checkForNewStrategies();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // 定期检查（处理同标签页的情况）
+    const interval = setInterval(checkForNewStrategies, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // 保存策略到localStorage
+  const saveStrategiesToStorage = (newStrategies: StrategyProposal[]) => {
+    try {
+      localStorage.setItem('strategyProposals', JSON.stringify(newStrategies));
+    } catch (error) {
+      console.error('保存策略建议失败:', error);
+    }
+  };
 
   const handleEdit = (strategy: StrategyProposal) => {
     setEditingId(strategy.id);
@@ -18,9 +83,9 @@ export default function StrategyCoCreation() {
   const handleSave = () => {
     if (!editingStrategy) return;
 
-    setStrategies(
-      strategies.map((s) => (s.id === editingStrategy.id ? { ...editingStrategy, updatedAt: new Date() } : s))
-    );
+    const updated = strategies.map((s) => (s.id === editingStrategy.id ? { ...editingStrategy, updatedAt: new Date() } : s));
+    setStrategies(updated);
+    saveStrategiesToStorage(updated);
     setEditingId(null);
     setEditingStrategy(null);
   };
@@ -32,7 +97,9 @@ export default function StrategyCoCreation() {
 
   const handleDelete = (id: string) => {
     if (confirm('确定要删除这个策略建议吗？')) {
-      setStrategies(strategies.filter((s) => s.id !== id));
+      const updated = strategies.filter((s) => s.id !== id);
+      setStrategies(updated);
+      saveStrategiesToStorage(updated);
     }
   };
 
@@ -66,6 +133,7 @@ export default function StrategyCoCreation() {
     // 更新优先级
     const updated = newStrategies.map((s, i) => ({ ...s, priority: i + 1 }));
     setStrategies(updated);
+    saveStrategiesToStorage(updated);
     setDraggedIndex(index);
   };
 
@@ -85,9 +153,187 @@ export default function StrategyCoCreation() {
       updatedAt: new Date(),
       isFromAI: false,
     };
-    setStrategies([...strategies, newStrategy]);
+    const updated = [...strategies, newStrategy];
+    setStrategies(updated);
+    saveStrategiesToStorage(updated);
     setEditingId(newStrategy.id);
     setEditingStrategy(newStrategy);
+  };
+
+  // 使用AI生成简洁的标题（十字以内）
+  const generateConciseTitle = async (proposal: StrategyProposal): Promise<string> => {
+    const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
+    const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY || '';
+
+    // 如果标题已经在十字以内，直接返回
+    if (proposal.title.length <= 10) {
+      return proposal.title;
+    }
+
+    // 如果没有API Key，使用智能截断作为后备方案
+    if (!DEEPSEEK_API_KEY) {
+      return truncateTitleFallback(proposal.title);
+    }
+
+    try {
+      const response = await axios.post(
+        DEEPSEEK_API_URL,
+        {
+          model: 'deepseek-chat',
+          messages: [
+            {
+              role: 'system',
+              content: '你是一个专业的业务策略分析师。你的任务是根据策略的完整信息，生成一个简洁、准确、有概括性的标题。标题必须严格控制在10个汉字以内，要能准确反映策略的核心内容。',
+            },
+            {
+              role: 'user',
+              content: `请为以下策略生成一个简洁的标题（严格控制在10个汉字以内）：
+
+策略标题：${proposal.title}
+策略描述：${proposal.description}
+${proposal.actions.length > 0 ? `具体行动：${proposal.actions.join('、')}` : ''}
+${proposal.expectedOutcome ? `预期效果：${proposal.expectedOutcome}` : ''}
+
+请只返回标题，不要包含任何其他文字或说明。`,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 50,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const aiTitle = response.data.choices[0]?.message?.content?.trim() || '';
+      
+      // 清理AI返回的内容（移除可能的引号、标点等）
+      const cleanTitle = aiTitle
+        .replace(/^["'""'「」『』【】《》]/g, '')
+        .replace(/["'""'「」『』【】《》]$/g, '')
+        .replace(/^标题[：:]\s*/i, '')
+        .trim();
+
+      // 如果AI生成的标题超过10个字，使用后备方案
+      if (cleanTitle.length > 10) {
+        return truncateTitleFallback(proposal.title);
+      }
+
+      return cleanTitle || truncateTitleFallback(proposal.title);
+    } catch (error) {
+      console.error('AI生成标题失败，使用后备方案:', error);
+      return truncateTitleFallback(proposal.title);
+    }
+  };
+
+  // 后备方案：智能截断标题
+  const truncateTitleFallback = (title: string, maxLength: number = 10): string => {
+    if (title.length <= maxLength) return title;
+    // 尝试在标点符号或空格处截断
+    const truncated = title.substring(0, maxLength);
+    const lastPunctuation = Math.max(
+      truncated.lastIndexOf('，'),
+      truncated.lastIndexOf('。'),
+      truncated.lastIndexOf('、'),
+      truncated.lastIndexOf(','),
+      truncated.lastIndexOf('.'),
+      truncated.lastIndexOf(' ')
+    );
+    if (lastPunctuation > maxLength * 0.6) {
+      return truncated.substring(0, lastPunctuation);
+    }
+    return truncated;
+  };
+
+  // 将策略建议转换为指标规划中的策略格式（异步，因为需要AI生成标题）
+  const convertToIndicatorStrategy = async (proposal: StrategyProposal): Promise<Strategy> => {
+    // 提取重点领域和目标结果
+    const focusAreas: string[] = [];
+    const targetOutcomes: string[] = [];
+
+    // 从描述和行动中提取关键词作为重点领域
+    const descriptionKeywords = proposal.description.split(/[，,。.、]/).filter(s => s.trim());
+    focusAreas.push(...descriptionKeywords.slice(0, 3));
+
+    // 从预期效果中提取目标结果
+    if (proposal.expectedOutcome) {
+      targetOutcomes.push(proposal.expectedOutcome);
+    }
+    
+    // 从行动中提取目标结果
+    if (proposal.actions.length > 0) {
+      targetOutcomes.push(...proposal.actions.slice(0, 2));
+    }
+
+    // 使用AI生成简洁标题
+    const conciseTitle = await generateConciseTitle(proposal);
+
+    return {
+      id: `strategy-${proposal.id}`,
+      name: conciseTitle, // AI生成的简洁标题（十字以内）
+      description: proposal.description,
+      focusAreas: focusAreas.length > 0 ? focusAreas : ['策略执行'],
+      targetOutcomes: targetOutcomes.length > 0 ? targetOutcomes : ['提升业务指标'],
+    };
+  };
+
+  // 导入策略到指标规划
+  const handleImportToIndicatorPlanning = async () => {
+    if (strategies.length === 0) {
+      alert('没有可导入的策略');
+      return;
+    }
+
+    // 显示加载提示
+    const loadingMessage = `正在为 ${strategies.length} 个策略生成简洁标题，请稍候...`;
+    const userConfirmed = confirm(loadingMessage + '\n\n点击"确定"开始导入');
+    if (!userConfirmed) return;
+
+    try {
+      // 读取现有的指标规划策略
+      const existingStrategiesJson = localStorage.getItem('indicatorPlanningStrategies');
+      let existingStrategies: Strategy[] = [];
+      
+      if (existingStrategiesJson) {
+        try {
+          existingStrategies = JSON.parse(existingStrategiesJson);
+        } catch (error) {
+          console.error('解析现有策略失败:', error);
+        }
+      }
+
+      // 异步转换策略建议为指标规划策略格式（使用AI生成标题）
+      const conversionPromises = strategies.map(proposal => convertToIndicatorStrategy(proposal));
+      const newStrategies = await Promise.all(conversionPromises);
+
+      // 合并策略（避免重复）
+      const strategyMap = new Map<string, Strategy>();
+      
+      // 先添加现有策略
+      existingStrategies.forEach(s => strategyMap.set(s.id, s));
+      
+      // 添加新策略（如果ID已存在则更新）
+      newStrategies.forEach(s => strategyMap.set(s.id, s));
+
+      // 保存到localStorage
+      const allStrategies = Array.from(strategyMap.values());
+      localStorage.setItem('indicatorPlanningStrategies', JSON.stringify(allStrategies));
+      
+      // 设置标记，通知指标规划页面更新
+      localStorage.setItem('hasNewIndicatorStrategies', 'true');
+
+      // 显示成功提示并导航
+      const shouldNavigate = confirm('策略已成功导入到指标规划！\n\n是否立即前往指标规划页面？');
+      if (shouldNavigate) {
+        navigate('/indicator-planning');
+      }
+    } catch (error) {
+      console.error('导入策略失败:', error);
+      alert('导入策略时出现错误，请稍后重试。');
+    }
   };
 
   const sortedStrategies = [...strategies].sort((a, b) => a.priority - b.priority);
@@ -266,6 +512,27 @@ export default function StrategyCoCreation() {
           ))}
         </div>
       </div>
+
+      {/* 导入按钮 */}
+      {strategies.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">导入到指标规划</h3>
+              <p className="text-sm text-gray-600">
+                将当前策略列表导入到指标规划页面，用于筛选相关指标
+              </p>
+            </div>
+            <button
+              onClick={handleImportToIndicatorPlanning}
+              className="flex items-center space-x-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+            >
+              <CheckCircle className="w-5 h-5" />
+              <span>确认并导入指标规划</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 提示 */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
