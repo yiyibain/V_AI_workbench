@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { ProductPerformance } from '../types';
+import { ProductPerformance, BasicIndicators } from '../types';
 import {
   AnomalyFinding,
   MacroRecommendation,
@@ -22,12 +22,14 @@ interface DataInterpretationProps {
   product: ProductPerformance;
   analysis: AIAnalysis | null;
   loading: boolean;
+  indicators?: BasicIndicators;
 }
 
 export default function DataInterpretation({
   product,
   analysis,
   loading,
+  indicators,
 }: DataInterpretationProps) {
   const [selectedText, setSelectedText] = useState<string>('');
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
@@ -47,8 +49,8 @@ export default function DataInterpretation({
 
   // 生成异常数据解读（合并了原因深挖和风险点提炼）
   const anomalies = useMemo(
-    () => generateAnomaliesWithCausesAndRisks(product, provinceDetails),
-    [product, provinceDetails]
+    () => generateAnomaliesWithCausesAndRisks(product, provinceDetails, indicators),
+    [product, provinceDetails, indicators]
   );
 
   // 分离全国共性和部分省份预警
@@ -626,13 +628,103 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
 // 生成异常数据（合并原因深挖和风险点提炼）
 function generateAnomaliesWithCausesAndRisks(
   product: ProductPerformance,
-  provinceDetails: ProvinceDetailPerformance[]
+  provinceDetails: ProvinceDetailPerformance[],
+  indicators?: BasicIndicators
 ): AnomalyFinding[] {
   const anomalies: AnomalyFinding[] = [];
   let anomalyId = 1;
 
-  // 1. 品牌整体解限率下降明显（全国共性）
-  if (product.deLimitRateChange < -3) {
+  // 1. 过程指标异常检测（使用过程指标数据）
+  // 注意：如果有过程指标数据，优先使用过程指标；如果没有，使用产品级别的数据
+  if (indicators && indicators.quarterlyData.length >= 2) {
+    const latest = indicators.quarterlyData[indicators.quarterlyData.length - 1];
+    const previous = indicators.quarterlyData[indicators.quarterlyData.length - 2];
+    const weightedDeLimitChange = latest.weightedDeLimitRate - previous.weightedDeLimitRate;
+    
+    // 如果加权解限率下降超过1%，生成异常（使用过程指标数据）
+    if (weightedDeLimitChange < -1) {
+      const avgDeLimitRate = provinceDetails.reduce((sum, p) => sum + p.deLimitRate, 0) / provinceDetails.length;
+      const deLimitDeclineProvinces = provinceDetails
+        .filter((p) => p.deLimitRate < 70 && (p.deLimitRateChange || 0) < -2)
+        .sort((a, b) => a.deLimitRate - b.deLimitRate)
+        .slice(0, 3);
+
+      anomalies.push({
+        id: `anomaly-${anomalyId++}`,
+        type: 'indicator',
+        category: 'national',
+        severity: Math.abs(weightedDeLimitChange) > 2 ? 'high' : 'medium',
+        title: '加权解限率下降明显',
+        description: `${product.productName}加权解限率从${previous.weightedDeLimitRate.toFixed(1)}%下降至${latest.weightedDeLimitRate.toFixed(1)}%，下降${Math.abs(weightedDeLimitChange).toFixed(1)}%，可能影响市场准入`,
+        dataPoint: {
+          label: '加权解限率',
+          value: latest.weightedDeLimitRate.toFixed(1),
+          change: weightedDeLimitChange,
+          unit: '%',
+        },
+        location: {},
+        relatedData: [
+          {
+            type: '过程指标',
+            source: '加权解限率',
+            value: `${latest.weightedDeLimitRate.toFixed(1)}%`,
+          },
+          {
+            type: '过程指标',
+            source: '上季度加权解限率',
+            value: `${previous.weightedDeLimitRate.toFixed(1)}%`,
+          },
+          {
+            type: '内部数据',
+            source: '平均省份解限率',
+            value: `${avgDeLimitRate.toFixed(1)}%`,
+          },
+        ],
+        possibleCauses: deLimitDeclineProvinces.length > 0 ? [
+          {
+            cause: `加权解限率从${previous.weightedDeLimitRate.toFixed(1)}%下降至${latest.weightedDeLimitRate.toFixed(1)}%，下降${Math.abs(weightedDeLimitChange).toFixed(1)}%。${deLimitDeclineProvinces.length > 0 ? `${deLimitDeclineProvinces[0].provinceName}等省份解限率下降尤其明显，可能由于集采政策影响、医院目录调整或竞品替代策略` : '可能由于集采政策影响、医院目录调整或竞品替代策略'}`,
+            evidence: [
+              {
+                type: 'data' as const,
+                source: '过程指标数据',
+                description: `加权解限率从${previous.weightedDeLimitRate.toFixed(1)}%下降至${latest.weightedDeLimitRate.toFixed(1)}%，下降${Math.abs(weightedDeLimitChange).toFixed(1)}%`,
+                dataPoint: '低于基准水平（20%左右）',
+              },
+              ...(deLimitDeclineProvinces.length > 0 ? [{
+                type: 'data' as const,
+                source: '省份解限率数据',
+                description: `${deLimitDeclineProvinces[0].provinceName}解限率${deLimitDeclineProvinces[0].deLimitRate.toFixed(1)}%，下降${Math.abs(deLimitDeclineProvinces[0].deLimitRateChange || 0).toFixed(1)}%`,
+                dataPoint: '低于平均水平',
+              } as const] : []),
+              {
+                type: 'external' as const,
+                source: '政策信息',
+                description: '第七批国家集采可能影响该省份医院准入',
+              },
+            ],
+            confidence: 'high' as const,
+          },
+        ] : undefined,
+        riskImplications: {
+          riskLevel: Math.abs(weightedDeLimitChange) > 2 ? 'high' : 'medium',
+          riskDescription: '加权解限率显著下降，可能影响产品市场准入和销量',
+          suggestedActions: {
+            shortTerm: [
+              '立即与解限率下降省份的医院沟通，了解具体障碍',
+              '加强解限团队投入，优先解决高价值医院准入问题',
+              '评估价格策略，提升产品竞争力',
+            ],
+            longTerm: [
+              '建立更完善的医院准入监控体系',
+              '加强与重点医院的长期合作关系',
+              '优化产品组合，提升整体竞争力',
+            ],
+          },
+        },
+      });
+    }
+  } else if (product.deLimitRateChange < -3) {
+    // 如果没有过程指标数据，使用产品级别的解限率数据（向后兼容）
     const avgDeLimitRate = provinceDetails.reduce((sum, p) => sum + p.deLimitRate, 0) / provinceDetails.length;
     const deLimitDeclineProvinces = provinceDetails
       .filter((p) => p.deLimitRate < 70 && (p.deLimitRateChange || 0) < -2)
@@ -706,8 +798,6 @@ function generateAnomaliesWithCausesAndRisks(
         },
       },
     });
-
-    // 注意：解限率下降问题已在全国共性中深挖，不在部分省份预警中重复
   }
 
   // 2. 分子式内份额下降（全国共性）
@@ -717,13 +807,23 @@ function generateAnomaliesWithCausesAndRisks(
       .sort((a, b) => a.marketShare - b.marketShare)
       .slice(0, 3);
 
+    // 根据分子式份额的变化情况生成不同的描述
+    let description = '';
+    if (product.moleculeShareChange > 0) {
+      description = `分子式份额上升${product.moleculeShareChange}%，但分子式内份额下降${Math.abs(product.moleculeInternalShareChange)}%，表明产品竞争力下降`;
+    } else if (product.moleculeShareChange < 0) {
+      description = `分子式份额下降${Math.abs(product.moleculeShareChange)}%，同时分子式内份额下降${Math.abs(product.moleculeInternalShareChange)}%，表明产品竞争力显著下降`;
+    } else {
+      description = `分子式份额保持稳定，但分子式内份额下降${Math.abs(product.moleculeInternalShareChange)}%，表明产品竞争力下降`;
+    }
+
     anomalies.push({
       id: `anomaly-${anomalyId++}`,
       type: 'indicator',
       category: 'national',
       severity: Math.abs(product.moleculeInternalShareChange) > 3 ? 'high' : 'medium',
       title: '分子式内份额显著下降',
-      description: `分子式份额上升${product.moleculeShareChange}%，但分子式内份额下降${Math.abs(product.moleculeInternalShareChange)}%，表明产品竞争力下降`,
+      description,
       dataPoint: {
         label: '分子式内份额',
         value: product.moleculeInternalShare.toFixed(1),

@@ -157,7 +157,7 @@ export default function InlineAIChat({
   return (
     <div
       ref={chatRef}
-      className="fixed z-50 w-96 bg-white border border-gray-200 rounded-lg shadow-xl flex flex-col max-h-[500px]"
+      className="fixed z-[100] w-96 bg-white border border-gray-200 rounded-lg shadow-xl flex flex-col max-h-[500px]"
       data-ai-chat-panel="true"
       onClick={handlePanelClick}
       onMouseDown={handlePanelMouseDown}

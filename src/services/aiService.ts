@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AIAnalysis, ProductPerformance, ProvincePerformance, Citation, ReasonConnection } from '../types';
+import { AIAnalysis, ProductPerformance, ProvincePerformance, Citation, ReasonConnection, BasicIndicators } from '../types';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY || '';
@@ -45,7 +45,42 @@ function generateMockAIResponse(messages: DeepSeekMessage[]): string {
   const userMessage = messages.find(m => m.role === 'user')?.content || '';
   
   if (userMessage.includes('产品表现')) {
-    return `基于数据分析，该产品在分子式层面表现良好，但分子式内份额出现下降趋势。可能原因包括：
+    // 从userMessage中提取具体数值
+    const statinShareMatch = userMessage.match(/立普妥占他汀份额：最新值([\d.]+)%/);
+    const corePenetrationMatch = userMessage.match(/核心影响型医院渗透率：最新值([\d.]+)%/);
+    const stableRateMatch = userMessage.match(/稳定分销率：最新值([\d.]+)%/);
+    const weightedRateMatch = userMessage.match(/加权解限率：最新值([\d.]+)%/);
+    const targetPenetrationMatch = userMessage.match(/目标影响型医院渗透率：最新值([\d.]+)%/);
+    
+    const statinShare = statinShareMatch ? statinShareMatch[1] : 'N/A';
+    const corePenetration = corePenetrationMatch ? corePenetrationMatch[1] : 'N/A';
+    const stableRate = stableRateMatch ? stableRateMatch[1] : 'N/A';
+    const weightedRate = weightedRateMatch ? weightedRateMatch[1] : 'N/A';
+    const targetPenetration = targetPenetrationMatch ? targetPenetrationMatch[1] : 'N/A';
+    
+    const statinShareNum = statinShare !== 'N/A' ? parseFloat(statinShare) : 0;
+    const corePenetrationNum = corePenetration !== 'N/A' ? parseFloat(corePenetration) : 0;
+    const stableRateNum = stableRate !== 'N/A' ? parseFloat(stableRate) : 0;
+    const weightedRateNum = weightedRate !== 'N/A' ? parseFloat(weightedRate) : 0;
+    const targetPenetrationNum = targetPenetration !== 'N/A' ? parseFloat(targetPenetration) : 0;
+    
+    return `## 就数论数
+
+基于过往4个季度的数据分析，该产品在结果指标和过程指标方面呈现以下特点：
+
+**结果指标表现**：
+- 立普妥占他汀份额最新值为${statinShare}%，${statinShareNum >= 10 ? '达到基准水平' : '低于基准水平（10%左右）'}
+- 从趋势看，该指标呈现${statinShareNum >= 10 ? '稳定或上升' : '下降'}趋势
+
+**过程指标表现**：
+- 核心影响型医院渗透率为${corePenetration}%，${corePenetrationNum >= 10 ? '达到基准水平' : '低于基准水平（10%左右）'}
+- 稳定分销率为${stableRate}%，${stableRateNum >= 60 ? '达到基准水平' : '低于基准水平（60%左右）'}
+- 加权解限率为${weightedRate}%，${weightedRateNum >= 20 ? '达到基准水平' : '低于基准水平（20%左右）'}
+- 目标影响型医院渗透率为${targetPenetration}%，${targetPenetrationNum >= 10 ? '达到基准水平' : '低于基准水平（10%左右）'}
+
+## 数据解读
+
+可能原因包括：
 1. 竞品营销策略调整，加大了市场投入
 2. 产品价格竞争力下降
 3. 渠道覆盖不足，特别是在下沉市场
@@ -81,11 +116,47 @@ function generateMockAIResponse(messages: DeepSeekMessage[]): string {
 
 // 分析产品表现
 export async function analyzeProductPerformance(
-  product: ProductPerformance
+  product: ProductPerformance,
+  indicators?: BasicIndicators
 ): Promise<AIAnalysis> {
   const systemPrompt = `你是一个专业的医药行业业务分析师，专注于晖致公司的产品表现分析。
 你需要基于"以患者为中心"和"解限-渗透-做广"的业务逻辑进行分析。
-请提供专业、深入的分析，包括数据解读、风险识别和行动建议。`;
+请提供专业、深入的分析，包括数据解读、风险识别和行动建议。
+**重要**：在分析中必须准确引用结果指标和过程指标的具体数值，确保与面板显示的数据完全一致。`;
+
+  // 构建结果指标和过程指标数据字符串
+  let indicatorsData = '';
+  if (indicators && indicators.quarterlyData.length > 0) {
+    const latest = indicators.quarterlyData[indicators.quarterlyData.length - 1];
+    const previous = indicators.quarterlyData.length > 1 
+      ? indicators.quarterlyData[indicators.quarterlyData.length - 2] 
+      : latest;
+    
+    const resultChange = latest.statinShare - previous.statinShare;
+    const coreChange = latest.coreHospitalPenetration - previous.coreHospitalPenetration;
+    const stableChange = latest.stableDistributionRate - previous.stableDistributionRate;
+    const weightedChange = latest.weightedDeLimitRate - previous.weightedDeLimitRate;
+    const targetChange = latest.targetHospitalPenetration - previous.targetHospitalPenetration;
+    
+    // 计算平均值
+    const avgStatinShare = indicators.quarterlyData.reduce((sum, q) => sum + q.statinShare, 0) / indicators.quarterlyData.length;
+    const avgCorePenetration = indicators.quarterlyData.reduce((sum, q) => sum + q.coreHospitalPenetration, 0) / indicators.quarterlyData.length;
+    const avgStableRate = indicators.quarterlyData.reduce((sum, q) => sum + q.stableDistributionRate, 0) / indicators.quarterlyData.length;
+    const avgWeightedRate = indicators.quarterlyData.reduce((sum, q) => sum + q.weightedDeLimitRate, 0) / indicators.quarterlyData.length;
+    const avgTargetPenetration = indicators.quarterlyData.reduce((sum, q) => sum + q.targetHospitalPenetration, 0) / indicators.quarterlyData.length;
+    
+    indicatorsData = `
+
+结果指标（过往4个季度）：
+- 立普妥占他汀份额：最新值${latest.statinShare.toFixed(1)}% (${resultChange > 0 ? '+' : ''}${resultChange.toFixed(1)}% vs 上季度)，4季度平均值${avgStatinShare.toFixed(1)}%
+- 历史数据：${indicators.quarterlyData.map(q => `${q.period}: ${q.statinShare.toFixed(1)}%`).join('; ')}
+
+过程指标（过往4个季度）：
+- 核心影响型医院渗透率：最新值${latest.coreHospitalPenetration.toFixed(1)}% (${coreChange > 0 ? '+' : ''}${coreChange.toFixed(1)}% vs 上季度)，4季度平均值${avgCorePenetration.toFixed(1)}%
+- 稳定分销率：最新值${latest.stableDistributionRate.toFixed(1)}% (${stableChange > 0 ? '+' : ''}${stableChange.toFixed(1)}% vs 上季度)，4季度平均值${avgStableRate.toFixed(1)}%
+- 加权解限率：最新值${latest.weightedDeLimitRate.toFixed(1)}% (${weightedChange > 0 ? '+' : ''}${weightedChange.toFixed(1)}% vs 上季度)，4季度平均值${avgWeightedRate.toFixed(1)}%
+- 目标影响型医院渗透率：最新值${latest.targetHospitalPenetration.toFixed(1)}% (${targetChange > 0 ? '+' : ''}${targetChange.toFixed(1)}% vs 上季度)，4季度平均值${avgTargetPenetration.toFixed(1)}%`;
+  }
 
   const userPrompt = `请分析以下产品的市场表现数据：
 
@@ -99,12 +170,14 @@ export async function analyzeProductPerformance(
 - 竞品份额：${product.competitorShare}% (变化：${product.competitorShareChange > 0 ? '+' : ''}${product.competitorShareChange}%)
 
 内部数据：
-- 解限率：${product.deLimitRate}% (变化：${product.deLimitRateChange > 0 ? '+' : ''}${product.deLimitRateChange}%)
+- 解限率：${product.deLimitRate}% (变化：${product.deLimitRateChange > 0 ? '+' : ''}${product.deLimitRateChange}%)${indicatorsData}
 
 请提供：
-1. "就数论数"：识别关键变化和风险点
+1. "就数论数"：识别关键变化和风险点，必须准确引用上述结果指标和过程指标的具体数值
 2. "数据解读"：分析可能原因，并提供进一步锁定问题的建议（包括拆解问题角度、可访谈对象等）
-3. 结合晖致"三环"运营体系，提供基于"解限-渗透-做广"逻辑的建议`;
+3. 结合晖致"三环"运营体系，提供基于"解限-渗透-做广"逻辑的建议
+
+**重要提示**：在分析中必须准确引用结果指标和过程指标的具体数值（如立普妥占他汀份额${indicators?.quarterlyData[indicators.quarterlyData.length - 1]?.statinShare.toFixed(1) || 'N/A'}%、核心影响型医院渗透率${indicators?.quarterlyData[indicators.quarterlyData.length - 1]?.coreHospitalPenetration.toFixed(1) || 'N/A'}%等），确保与面板显示的数据完全一致。`;
 
   const response = await callDeepSeekAPI([
     { role: 'system', content: systemPrompt },

@@ -248,7 +248,9 @@ export default function OpportunityAnalysis() {
                 className="w-full text-left"
               >
                 <div className="font-semibold text-gray-900 mb-1">{opp.title}</div>
-                <div className="text-sm text-gray-600 mb-2">{opp.marketSegment}</div>
+                {opp.description && (
+                  <div className="text-sm text-gray-600 mb-2 line-clamp-2">{opp.description}</div>
+                )}
                 <div className="flex items-center space-x-2">
                   <span
                     className={clsx(
@@ -321,15 +323,6 @@ export default function OpportunityAnalysis() {
                   value={editingOpportunity.description}
                   onChange={(e) => setEditingOpportunity({ ...editingOpportunity, description: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">当前缺口</label>
-                <input
-                  type="text"
-                  value={editingOpportunity.currentGap}
-                  onChange={(e) => setEditingOpportunity({ ...editingOpportunity, currentGap: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BasicIndicators, ProductPerformance, AIAnalysis } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, MessageCircle } from 'lucide-react';
 import DataInterpretation from './DataInterpretation';
 import { useAnalysis } from '../contexts/AnalysisContext';
 import { analyzeProductPerformance } from '../services/aiService';
+import InlineAIChat from './InlineAIChat';
 
 interface BasicIndicatorsDisplayProps {
   indicators: BasicIndicators;
@@ -19,6 +20,17 @@ export default function BasicIndicatorsDisplay({ indicators, product }: BasicInd
     getCachedAnalysis,
     setCachedAnalysis,
   } = useAnalysis();
+
+  // 追问功能相关状态
+  const [selectedText, setSelectedText] = useState<string>('');
+  const [showChatButton, setShowChatButton] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [chatPosition, setChatPosition] = useState<{ top: number; left: number } | null>(null);
+  const selectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectedTextRef = useRef<string>('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const indicatorsSectionRef = useRef<HTMLDivElement>(null);
 
   // 生成缓存键
   const cacheKey = `product-${product.productId}-${product.period}`;
@@ -39,7 +51,7 @@ export default function BasicIndicatorsDisplay({ indicators, product }: BasicInd
     // 需要重新分析
     setLoading(true);
     try {
-      const result = await analyzeProductPerformance(product);
+      const result = await analyzeProductPerformance(product, indicators);
       setAnalysis(result);
       // 保存到缓存
       setCachedAnalysis(cacheKey, result);
@@ -100,8 +112,236 @@ export default function BasicIndicatorsDisplay({ indicators, product }: BasicInd
 
   const resultStats = calculateStats(resultIndicatorData);
 
+  // 处理文本选择（防抖处理，避免频繁更新）
+  const handleTextSelection = () => {
+    if (selectionTimeoutRef.current) {
+      clearTimeout(selectionTimeoutRef.current);
+    }
+    
+    selectionTimeoutRef.current = setTimeout(() => {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0 && selection.toString().trim().length > 0) {
+        const selected = selection.toString().trim();
+        // 只处理长度大于3的选中文本
+        if (selected.length < 3) {
+          setSelectedText('');
+          setShowChatButton(false);
+          return;
+        }
+        
+        const range = selection.getRangeAt(0);
+        let commonAncestor: Node = range.commonAncestorContainer;
+        
+        // 如果commonAncestor是文本节点，获取其父元素
+        if (commonAncestor.nodeType === Node.TEXT_NODE) {
+          commonAncestor = commonAncestor.parentNode as Node;
+        }
+        
+        // 检查是否在容器内（包括基础指标展示区域）
+        if (containerRef.current && containerRef.current.contains(commonAncestor as Node)) {
+          setSelectedText(selected);
+          selectedTextRef.current = selected;
+          setShowChatButton(true);
+        } else {
+          setSelectedText('');
+          selectedTextRef.current = '';
+          setShowChatButton(false);
+        }
+      } else {
+        // 如果没有选中文本，延迟清除状态
+        if (clearStatusTimeoutRef.current) {
+          clearTimeout(clearStatusTimeoutRef.current);
+        }
+        clearStatusTimeoutRef.current = setTimeout(() => {
+          const currentSelection = window.getSelection();
+          if (!currentSelection || currentSelection.toString().trim().length === 0) {
+            if (!showChat) {
+              setSelectedText('');
+              selectedTextRef.current = '';
+              setShowChatButton(false);
+            }
+          }
+        }, 200);
+      }
+    }, 150); // 防抖时间150ms
+  };
+
+  // 处理点击追问按钮
+  const handleAskQuestion = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation(); // 阻止事件冒泡
+      e.preventDefault(); // 阻止默认行为
+    }
+    
+    // 清除可能存在的清除状态的定时器
+    if (clearStatusTimeoutRef.current) {
+      clearTimeout(clearStatusTimeoutRef.current);
+    }
+    
+    const textToUse = selectedText || selectedTextRef.current;
+    if (!textToUse) {
+      return;
+    }
+    
+    // 如果selectedText为空但ref有值，更新state
+    if (!selectedText && textToUse) {
+      setSelectedText(textToUse);
+    }
+    
+    // 固定在右上角，位于按钮下方
+    setChatPosition({
+      top: 80, // 距离顶部80px (按钮top-4是16px，加上按钮高度和间距)
+      left: Math.max(20, window.innerWidth - 420), // 距离右侧420px，但至少距离左边20px
+    });
+    setShowChat(true);
+  };
+
+  // 处理鼠标抬起事件（用于文本选择）
+  const handleMouseUp = (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    // 如果点击在对话框内，不处理文本选择
+    const chatPanel = target.closest('[data-ai-chat-panel="true"]');
+    if (chatPanel) {
+      return;
+    }
+    // 如果点击的是按钮，不处理文本选择
+    if (target.closest('button')) {
+      return;
+    }
+    // 延迟处理，确保文本选择完成
+    setTimeout(() => {
+      handleTextSelection();
+    }, 50);
+  };
+
+  // 设置文本选择监听
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container) {
+      // 使用selectionchange事件，更可靠地检测文本选择
+      const handleSelectionChange = () => {
+        // 检查选择是否在容器内
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const commonAncestor = range.commonAncestorContainer;
+          // 只有在容器内的选择才处理
+          if (container.contains(commonAncestor as Node)) {
+            handleTextSelection();
+          }
+        } else {
+          // 选择被清空，延迟清除状态
+          if (clearStatusTimeoutRef.current) {
+            clearTimeout(clearStatusTimeoutRef.current);
+          }
+          clearStatusTimeoutRef.current = setTimeout(() => {
+            const currentSelection = window.getSelection();
+            if (!currentSelection || currentSelection.toString().trim().length === 0) {
+              if (!showChat) {
+                setSelectedText('');
+                selectedTextRef.current = '';
+                setShowChatButton(false);
+              }
+            }
+          }, 200);
+        }
+      };
+      
+      // 同时监听mouseup和selectionchange
+      container.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('selectionchange', handleSelectionChange);
+      
+      // 点击外部区域时清除选择（延迟执行，避免与文本选择冲突）
+      const handleClickOutside = (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        
+        // 如果点击的是追问按钮，不清除选择
+        if (target.closest('button') && target.closest('button')?.textContent?.includes('追问')) {
+          return;
+        }
+        
+        // 如果点击的是AI对话面板内的任何元素，不清除选择
+        const chatPanel = target.closest('[data-ai-chat-panel="true"]');
+        if (chatPanel) {
+          e.stopPropagation();
+          return;
+        }
+        
+        // 如果对话框已打开，点击对话框外部也不清除
+        if (showChat) {
+          return;
+        }
+        
+        // 延迟清除，确保文本选择事件先处理
+        if (clearStatusTimeoutRef.current) {
+          clearTimeout(clearStatusTimeoutRef.current);
+        }
+        clearStatusTimeoutRef.current = setTimeout(() => {
+          const selection = window.getSelection();
+          const selectedText = selection?.toString().trim() || '';
+          
+          // 如果点击在容器外部，或者没有选中文本，则清除
+          if (container && !container.contains(e.target as Node)) {
+            if (selectedText.length === 0) {
+              setSelectedText('');
+              selectedTextRef.current = '';
+              setShowChatButton(false);
+              setShowChat(false);
+              if (selection) {
+                selection.removeAllRanges();
+              }
+            }
+          } else if (selectedText.length === 0) {
+            // 在容器内但文本选择被清空
+            setSelectedText('');
+            selectedTextRef.current = '';
+            setShowChatButton(false);
+          }
+        }, 500);
+      };
+      
+      document.addEventListener('mousedown', handleClickOutside);
+      
+      return () => {
+        container.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('selectionchange', handleSelectionChange);
+        document.removeEventListener('mousedown', handleClickOutside);
+        if (selectionTimeoutRef.current) {
+          clearTimeout(selectionTimeoutRef.current);
+        }
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showChat]);
+
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div ref={containerRef} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 relative">
+      {/* 使用提示 */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+        <p className="text-sm text-blue-700 flex items-center">
+          <MessageCircle className="w-4 h-4 mr-2" />
+          <span>💡 提示：选中任意文本后，可点击"追问"按钮进行AI深度分析</span>
+        </p>
+      </div>
+
+      {/* 追问按钮 - 显示在页面最右上角 */}
+      {showChatButton && selectedText && (
+        <div 
+          className="fixed top-4 right-4 z-50"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+        >
+          <button
+            onClick={handleAskQuestion}
+            onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+            className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors shadow-lg animate-pulse"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span>追问选中内容</span>
+          </button>
+        </div>
+      )}
+
       {/* 标题 */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">基础指标展示</h2>
@@ -138,7 +378,7 @@ export default function BasicIndicatorsDisplay({ indicators, product }: BasicInd
 
       {/* 结果指标展示 */}
       {selectedCategory === 'result' && (
-        <div className="space-y-6">
+        <div ref={indicatorsSectionRef} className="space-y-6 relative">
           {/* 结果指标概览卡片 */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
@@ -257,7 +497,7 @@ export default function BasicIndicatorsDisplay({ indicators, product }: BasicInd
 
       {/* 过程指标展示 */}
       {selectedCategory === 'process' && (
-        <div className="space-y-6">
+        <div ref={indicatorsSectionRef} className="space-y-6 relative">
           {/* 过程指标概览卡片 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
@@ -404,8 +644,26 @@ export default function BasicIndicatorsDisplay({ indicators, product }: BasicInd
             基于具体数据下钻分析，识别异常值、深挖原因、提炼风险点并提供解决方案
           </p>
         </div>
-        <DataInterpretation product={product} analysis={analysis} loading={loading} />
+        <DataInterpretation product={product} analysis={analysis} loading={loading} indicators={indicators} />
       </div>
+
+      {/* 内联AI对话面板 */}
+      {showChat && (selectedText || selectedTextRef.current) && chatPosition && (
+        <InlineAIChat
+          selectedText={selectedText || selectedTextRef.current}
+          position={chatPosition}
+          context={{ product, analysis, indicators }}
+          onClose={() => {
+            setShowChat(false);
+            setSelectedText('');
+            selectedTextRef.current = '';
+            setShowChatButton(false);
+            setChatPosition(null);
+            // 清空选择
+            window.getSelection()?.removeAllRanges();
+          }}
+        />
+      )}
     </div>
   );
 }
