@@ -187,20 +187,20 @@ export default function InlineAIChat({
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[85%] rounded-lg p-3 text-sm ${
+              className={`max-w-[85%] rounded-lg p-4 text-base ${
                 message.role === 'user'
                   ? 'bg-primary-600 text-white'
                   : 'bg-white text-gray-800 border border-gray-200'
               }`}
             >
               {message.role === 'assistant' ? (
-                <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-blue-600 prose-pre:bg-gray-100">
+                <div className="prose prose-base max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-blue-600 prose-pre:bg-gray-100 leading-relaxed">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {message.content}
                   </ReactMarkdown>
                 </div>
               ) : (
-                message.content
+                <div className="leading-relaxed">{message.content}</div>
               )}
             </div>
           </div>

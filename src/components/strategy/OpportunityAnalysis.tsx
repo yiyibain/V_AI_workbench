@@ -247,9 +247,9 @@ export default function OpportunityAnalysis() {
                 }}
                 className="w-full text-left"
               >
-                <div className="font-semibold text-gray-900 mb-1">{opp.title}</div>
+                <div className="font-semibold text-base text-gray-900 mb-2">{opp.title}</div>
                 {opp.description && (
-                  <div className="text-sm text-gray-600 mb-2 line-clamp-2">{opp.description}</div>
+                  <div className="text-base text-gray-600 mb-3 line-clamp-2 leading-relaxed">{opp.description}</div>
                 )}
                 <div className="flex items-center space-x-2">
                   <span
@@ -367,8 +367,8 @@ export default function OpportunityAnalysis() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-1">AI策略分析流程</h3>
-                <p className="text-sm text-gray-600">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">AI策略分析流程</h3>
+                <p className="text-base text-gray-600 leading-relaxed">
                   基于5步流程进行问题原因梳理和策略制定：原因分析 → 策略建议 → 用户校准 → 迭代优化 → 最终总结
                 </p>
               </div>

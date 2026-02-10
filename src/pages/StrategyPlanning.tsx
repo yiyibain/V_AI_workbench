@@ -41,7 +41,7 @@ export default function StrategyPlanning() {
       id: 'opportunity' as TabType,
       label: '机会点甄别与提炼',
       icon: Target,
-      description: '分析维度问答 + 机会提炼报告',
+      description: 'AI策略分析',
     },
     {
       id: 'coCreation' as TabType,

@@ -363,35 +363,35 @@ export default function DataInterpretation({
       )}
 
       {/* 异常数据解读 - 默认展开 */}
-      <div ref={anomalySectionRef} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 relative">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-2">
-            <AlertTriangle className="w-6 h-6 text-orange-500" />
-            <h3 className="text-xl font-bold text-gray-900">异常数据解读</h3>
+      <div ref={anomalySectionRef} className="bg-white rounded-lg shadow-sm border border-gray-200 p-7 relative">
+        <div className="flex items-center justify-between mb-7">
+          <div className="flex items-center space-x-3">
+            <AlertTriangle className="w-7 h-7 text-orange-500" />
+            <h3 className="text-2xl font-bold text-gray-900">异常数据解读</h3>
           </div>
           {showChatButton && (selectedSection === 'anomaly' || selectedSection === 'general') && selectedText && (
             <button
               onClick={handleAskQuestion}
-              className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors shadow-sm z-50 animate-pulse"
+              className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white text-base rounded-lg hover:bg-primary-700 transition-colors shadow-sm z-50 animate-pulse"
               style={{ position: 'relative' }}
             >
-              <MessageCircle className="w-4 h-4" />
+              <MessageCircle className="w-5 h-5" />
               <span>追问</span>
             </button>
           )}
         </div>
-        <p className="text-sm text-gray-600 mb-6">
+        <p className="text-base text-gray-600 mb-7 leading-relaxed">
           基于具体数据下钻分析，识别异常值、深挖原因、提炼风险点并提供解决方案
         </p>
 
         {/* 全国共性 */}
         {nationalAnomalies.length > 0 && (
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+          <div className="mb-7">
+            <h4 className="text-xl font-semibold text-gray-900 mb-5 flex items-center">
+              <span className="w-2.5 h-2.5 bg-blue-500 rounded-full mr-3"></span>
               全国共性
             </h4>
-            <div className="space-y-4">
+            <div className="space-y-5">
               {nationalAnomalies.map((anomaly) => (
                 <AnomalyCard key={anomaly.id} anomaly={anomaly} />
               ))}
@@ -402,11 +402,11 @@ export default function DataInterpretation({
         {/* 部分省份预警 */}
         {provinceAnomalies.length > 0 && (
           <div>
-            <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <span className="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
+            <h4 className="text-xl font-semibold text-gray-900 mb-5 flex items-center">
+              <span className="w-2.5 h-2.5 bg-orange-500 rounded-full mr-3"></span>
               部分省份预警
             </h4>
-            <div className="space-y-4">
+            <div className="space-y-5">
               {provinceAnomalies.map((anomaly) => (
                 <AnomalyCard key={anomaly.id} anomaly={anomaly} />
               ))}
@@ -415,31 +415,31 @@ export default function DataInterpretation({
         )}
 
         {anomalies.length === 0 && (
-          <div className="text-center py-8 text-gray-500 text-sm">
+          <div className="text-center py-10 text-gray-500 text-base">
             暂无异常数据
           </div>
         )}
       </div>
 
       {/* AI总结分析 */}
-      <div ref={summarySectionRef} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 relative">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <MessageCircle className="w-6 h-6 text-primary-500" />
-            <h3 className="text-xl font-bold text-gray-900">AI总结分析</h3>
+      <div ref={summarySectionRef} className="bg-white rounded-lg shadow-sm border border-gray-200 p-7 relative">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <MessageCircle className="w-7 h-7 text-primary-500" />
+            <h3 className="text-2xl font-bold text-gray-900">AI总结分析</h3>
           </div>
           {showChatButton && (selectedSection === 'summary' || selectedSection === 'general') && selectedText && (
             <button
               onClick={handleAskQuestion}
-              className="flex items-center space-x-2 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors shadow-sm z-50 animate-pulse"
+              className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white text-base rounded-lg hover:bg-primary-700 transition-colors shadow-sm z-50 animate-pulse"
               style={{ position: 'relative' }}
             >
-              <MessageCircle className="w-4 h-4" />
+              <MessageCircle className="w-5 h-5" />
               <span>追问</span>
             </button>
           )}
         </div>
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-base text-gray-600 mb-6 leading-relaxed">
           基于整体数据表现，提供战略层面的综合分析与建议
         </p>
         
@@ -476,7 +476,7 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
   return (
     <div
       className={clsx(
-        'border rounded-lg p-5 select-text cursor-text',
+        'border rounded-lg p-6 select-text cursor-text',
         anomaly.severity === 'high'
           ? 'border-red-300 bg-red-50'
           : anomaly.severity === 'medium'
@@ -485,13 +485,13 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
       )}
       style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
     >
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <div className="flex items-center space-x-2 mb-2">
-            <span className="font-semibold text-gray-900">{anomaly.title}</span>
+          <div className="flex items-center space-x-3 mb-3">
+            <span className="font-semibold text-base text-gray-900">{anomaly.title}</span>
             <span
               className={clsx(
-                'text-xs px-2 py-1 rounded-full',
+                'text-sm px-2.5 py-1.5 rounded-full',
                 anomaly.severity === 'high'
                   ? 'bg-red-200 text-red-800'
                   : anomaly.severity === 'medium'
@@ -502,11 +502,11 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
               {anomaly.severity === 'high' ? '高风险' : anomaly.severity === 'medium' ? '中风险' : '低风险'}
             </span>
           </div>
-          <p className="text-sm text-gray-700 mb-3">{anomaly.description}</p>
-          <div className="flex items-center space-x-4 text-xs text-gray-600 mb-3">
+          <p className="text-base text-gray-700 mb-4 leading-relaxed">{anomaly.description}</p>
+          <div className="flex items-center space-x-5 text-sm text-gray-600 mb-4">
             {anomaly.location.province && (
-              <span className="flex items-center space-x-1">
-                <MapPin className="w-3 h-3" />
+              <span className="flex items-center space-x-1.5">
+                <MapPin className="w-4 h-4" />
                 <span>{anomaly.location.province}</span>
               </span>
             )}
@@ -516,7 +516,7 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
               {anomaly.dataPoint.change !== undefined && (
                 <span
                   className={clsx(
-                    'ml-1',
+                    'ml-1.5',
                     anomaly.dataPoint.change! > 0 ? 'text-red-600' : 'text-green-600'
                   )}
                 >
@@ -531,13 +531,13 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
 
       {/* 相关数据 */}
       {anomaly.relatedData.length > 0 && (
-        <div className="mb-4 select-text cursor-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
-          <h5 className="text-sm font-semibold text-gray-700 mb-2">相关数据</h5>
-          <div className="space-y-2">
+        <div className="mb-5 select-text cursor-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
+          <h5 className="text-base font-semibold text-gray-700 mb-3">相关数据</h5>
+          <div className="space-y-2.5">
             {anomaly.relatedData.map((data, index) => (
               <div
                 key={index}
-                className="flex items-start space-x-2 text-sm bg-gray-50 p-2 rounded select-text cursor-text"
+                className="flex items-start space-x-3 text-base bg-gray-50 p-3 rounded select-text cursor-text"
                 style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
               >
                 <span className="text-primary-600 font-medium">{data.type}:</span>
@@ -551,32 +551,32 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
 
       {/* 可能原因（合并的原因深挖内容） */}
       {anomaly.possibleCauses && anomaly.possibleCauses.length > 0 && (
-        <div className="mb-4 border-t pt-4 select-text cursor-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
-          <h5 className="text-sm font-semibold text-gray-700 mb-2">可能原因</h5>
-          <div className="space-y-3">
+        <div className="mb-5 border-t pt-5 select-text cursor-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
+          <h5 className="text-base font-semibold text-gray-700 mb-3">可能原因</h5>
+          <div className="space-y-4">
             {anomaly.possibleCauses.map((cause, index) => (
               <div
                 key={index}
-                className="bg-blue-50 border border-blue-200 rounded-lg p-3 select-text cursor-text"
+                className="bg-blue-50 border border-blue-200 rounded-lg p-4 select-text cursor-text"
                 style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
               >
-                <p className="text-sm text-gray-800 mb-2">{cause.cause}</p>
-                <div className="space-y-2">
+                <p className="text-base text-gray-800 mb-3 leading-relaxed">{cause.cause}</p>
+                <div className="space-y-2.5">
                   {cause.evidence.map((evidence, evIndex) => (
                     <div
                       key={evIndex}
-                      className="flex items-start space-x-2 text-xs bg-white p-2 rounded border border-blue-100"
+                      className="flex items-start space-x-3 text-sm bg-white p-3 rounded border border-blue-100"
                     >
                       {evidence.type === 'data' ? (
-                        <Database className="w-3 h-3 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <Database className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                       ) : (
-                        <ExternalLink className="w-3 h-3 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <ExternalLink className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                       )}
                       <div className="flex-1">
                         <span className="font-medium text-blue-900">{evidence.source}:</span>
-                        <span className="text-blue-700 ml-1">{evidence.description}</span>
+                        <span className="text-blue-700 ml-1.5">{evidence.description}</span>
                         {evidence.dataPoint && (
-                          <span className="text-blue-600 ml-1">({evidence.dataPoint})</span>
+                          <span className="text-blue-600 ml-1.5">({evidence.dataPoint})</span>
                         )}
                       </div>
                     </div>
@@ -584,7 +584,7 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
                 </div>
                 <span
                   className={clsx(
-                    'text-xs px-2 py-1 rounded-full mt-2 inline-block',
+                    'text-sm px-2.5 py-1.5 rounded-full mt-3 inline-block',
                     cause.confidence === 'high'
                       ? 'bg-green-100 text-green-700'
                       : cause.confidence === 'medium'
@@ -602,13 +602,13 @@ function AnomalyCard({ anomaly }: { anomaly: AnomalyFinding }) {
 
       {/* 风险提示（合并的风险点提炼内容） */}
       {anomaly.riskImplications && (
-        <div className="border-t pt-4 select-text cursor-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
-          <h5 className="text-sm font-semibold text-gray-700 mb-2">风险提示</h5>
-          <p className="text-sm text-gray-700 mb-3">{anomaly.riskImplications.riskDescription}</p>
+        <div className="border-t pt-5 select-text cursor-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
+          <h5 className="text-base font-semibold text-gray-700 mb-3">风险提示</h5>
+          <p className="text-base text-gray-700 mb-4 leading-relaxed">{anomaly.riskImplications.riskDescription}</p>
           <div>
             <span
               className={clsx(
-                'text-xs px-2 py-1 rounded-full',
+                'text-sm px-2.5 py-1.5 rounded-full',
                 anomaly.riskImplications.riskLevel === 'high'
                   ? 'bg-red-200 text-red-800'
                   : anomaly.riskImplications.riskLevel === 'medium'
@@ -1263,15 +1263,15 @@ function SummaryContent({
 
   return (
     <div 
-      className="prose prose-sm max-w-none text-gray-700 bg-blue-50 border border-blue-200 rounded-lg p-4 select-text cursor-text"
+      className="prose prose-base max-w-none text-gray-700 bg-blue-50 border border-blue-200 rounded-lg p-6 select-text cursor-text"
       style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
     >
-      <div className="text-sm leading-relaxed">
-        <p className="mb-3">
+      <div className="text-base leading-relaxed">
+        <p className="mb-4">
           <strong>整体评估：</strong>
           {summary.overallPerformance}
         </p>
-        <p className="mb-3">
+        <p className="mb-4">
           <strong>战略洞察：</strong>
           {summary.strategicInsights}
         </p>

@@ -357,25 +357,25 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
 
       {/* 第一步：原因分析结果 */}
       {analysisResult?.step1 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <CheckCircle2 className="w-5 h-5 text-green-500" />
-            <h3 className="text-lg font-bold text-gray-900">第一步：问题对应原因再梳理</h3>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-7">
+          <div className="flex items-center space-x-3 mb-5">
+            <CheckCircle2 className="w-6 h-6 text-green-500" />
+            <h3 className="text-xl font-bold text-gray-900">第一步：问题对应原因再梳理</h3>
           </div>
 
-          <div className="mb-4">
-            <h4 className="font-semibold text-gray-900 mb-2">核心问题</h4>
-            <p className="text-gray-700 mb-3">{analysisResult.step1.problemTitle}</p>
-            <p className="text-sm text-gray-600 italic">{analysisResult.step1.causeStatement}</p>
+          <div className="mb-5">
+            <h4 className="font-semibold text-base text-gray-900 mb-3">核心问题</h4>
+            <p className="text-base text-gray-700 mb-4 leading-relaxed">{analysisResult.step1.problemTitle}</p>
+            <p className="text-base text-gray-600 italic leading-relaxed">{analysisResult.step1.causeStatement}</p>
           </div>
 
           <div>
-            <h4 className="font-semibold text-gray-900 mb-2">关键事实依据</h4>
-            <div className="space-y-3">
+            <h4 className="font-semibold text-base text-gray-900 mb-3">关键事实依据</h4>
+            <div className="space-y-4">
               {analysisResult.step1.coreFacts.map((fact) => (
-                <div key={fact.id} className="border-l-4 border-primary-500 pl-4">
-                  <p className="text-sm text-gray-700 mb-1">{fact.content}</p>
-                  <div className="flex items-center space-x-4 text-xs text-gray-500">
+                <div key={fact.id} className="border-l-4 border-primary-500 pl-5">
+                  <p className="text-base text-gray-700 mb-2 leading-relaxed">{fact.content}</p>
+                  <div className="flex items-center space-x-5 text-sm text-gray-500">
                     <span>来源：{fact.dataSource}</span>
                     <span>相关性：{fact.relevance}</span>
                   </div>
@@ -388,44 +388,44 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
 
       {/* 第二步：策略建议 */}
       {analysisResult?.step2 && analysisResult.step2.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <CheckCircle2 className="w-5 h-5 text-green-500" />
-            <h3 className="text-lg font-bold text-gray-900">第二步：提出解决方案</h3>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-7">
+          <div className="flex items-center space-x-3 mb-5">
+            <CheckCircle2 className="w-6 h-6 text-green-500" />
+            <h3 className="text-xl font-bold text-gray-900">第二步：提出解决方案</h3>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {analysisResult.step2.map((strategy, idx) => (
-              <div key={strategy.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <div className="flex items-start justify-between mb-2">
+              <div key={strategy.id} className="border border-gray-200 rounded-lg p-5 bg-gray-50">
+                <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="font-semibold text-gray-900">策略建议 {idx + 1}：{strategy.title}</span>
-                      <span className="text-xs px-2 py-1 rounded bg-primary-100 text-primary-700">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <span className="font-semibold text-base text-gray-900">策略建议 {idx + 1}：{strategy.title}</span>
+                      <span className="text-sm px-2.5 py-1.5 rounded bg-primary-100 text-primary-700">
                         {strategy.category === 'channel' ? '渠道/覆盖' :
                          strategy.category === 'product' ? '产品/包装/价格' :
                          strategy.category === 'resource' ? '资源/推广模式' : '推广'}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700 mb-2">{strategy.description}</p>
-                    <div className="text-sm text-gray-600 mb-2">
+                    <p className="text-base text-gray-700 mb-3 leading-relaxed">{strategy.description}</p>
+                    <div className="text-base text-gray-600 mb-3">
                       <span className="font-medium">策略级表达：</span>
                       {strategy.strategicLevel}
                     </div>
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-gray-700 mb-2">具体实施建议：</div>
-                  <ul className="space-y-1">
+                  <div className="text-base font-medium text-gray-700 mb-3">具体实施建议：</div>
+                  <ul className="space-y-2">
                     {strategy.specificActions.map((action, i) => (
-                      <li key={i} className="flex items-start text-sm text-gray-600">
+                      <li key={i} className="flex items-start text-base text-gray-600 leading-relaxed">
                         <span className="text-primary-600 mr-2">→</span>
                         <span>{action}</span>
                       </li>
                     ))}
                   </ul>
                   {strategy.expectedOutcome && (
-                    <div className="mt-2 text-sm text-gray-600">
+                    <div className="mt-3 text-base text-gray-600 leading-relaxed">
                       <span className="font-medium">预期效果：</span>
                       {strategy.expectedOutcome}
                     </div>
@@ -439,28 +439,28 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
 
       {/* 第三步：用户反馈表单 */}
       {showFeedbackForm && analysisResult && analysisResult.status === 'waiting_feedback' && (
-        <div className="bg-white rounded-lg shadow-sm border-2 border-primary-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
-              <MessageSquare className="w-5 h-5 text-primary-600" />
-              <h3 className="text-lg font-bold text-gray-900">第三步：与用户的交互校准</h3>
+        <div className="bg-white rounded-lg shadow-sm border-2 border-primary-200 p-7">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center space-x-3">
+              <MessageSquare className="w-6 h-6 text-primary-600" />
+              <h3 className="text-xl font-bold text-gray-900">第三步：与用户的交互校准</h3>
             </div>
             <button
               onClick={() => setShowFeedbackForm(false)}
               className="p-1 text-gray-400 hover:text-gray-600"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-900 whitespace-pre-line">
+          <div className="mb-5 p-5 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-base text-blue-900 whitespace-pre-line leading-relaxed">
               {analysisResult.step3.clarificationQuestions?.[0] || '请提供您的反馈意见'}
             </p>
           </div>
 
-          <div className="space-y-3 mb-4">
-            <label className="flex items-center space-x-2 cursor-pointer">
+          <div className="space-y-4 mb-5">
+            <label className="flex items-center space-x-3 cursor-pointer">
               <input
                 type="radio"
                 name="feedbackType"
@@ -469,11 +469,11 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
                 onChange={() => setFeedbackType('A')}
                 className="text-primary-600"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-base text-gray-700 leading-relaxed">
                 <strong>A</strong>：整体方向与逻辑基本符合，只需在少数问题上做补充/精炼
               </span>
             </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
+            <label className="flex items-center space-x-3 cursor-pointer">
               <input
                 type="radio"
                 name="feedbackType"
@@ -482,11 +482,11 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
                 onChange={() => setFeedbackType('B')}
                 className="text-primary-600"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-base text-gray-700 leading-relaxed">
                 <strong>B</strong>：部分策略不合理，希望你围绕某一类问题（请说明）做更深入分析
               </span>
             </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
+            <label className="flex items-center space-x-3 cursor-pointer">
               <input
                 type="radio"
                 name="feedbackType"
@@ -495,11 +495,11 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
                 onChange={() => setFeedbackType('C')}
                 className="text-primary-600"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-base text-gray-700 leading-relaxed">
                 <strong>C</strong>：与我真实判断差距较大，我希望指定正确的结论，再让你帮我完善推理过程
               </span>
             </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
+            <label className="flex items-center space-x-3 cursor-pointer">
               <input
                 type="radio"
                 name="feedbackType"
@@ -508,15 +508,15 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
                 onChange={() => setFeedbackType('custom')}
                 className="text-primary-600"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-base text-gray-700 leading-relaxed">
                 <strong>自定义反馈</strong>：直接输入你的具体反馈意见
               </span>
             </label>
           </div>
 
           {(feedbackType === 'B' || feedbackType === 'C' || feedbackType === 'custom') && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="mb-5">
+              <label className="block text-base font-medium text-gray-700 mb-3">
                 {feedbackType === 'B' ? '请说明需要深入分析的问题类别' :
                  feedbackType === 'C' ? '请指定你认为正确的结论' :
                  '请输入你的具体反馈意见'}
@@ -573,35 +573,35 @@ export default function StrategyAnalysisFlow({ opportunity, onComplete }: Strate
 
       {/* 第五步：最终总结 */}
       {analysisResult?.step5 && (
-        <div className="bg-white rounded-lg shadow-sm border-2 border-green-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
-              <CheckCircle2 className="w-5 h-5 text-green-600" />
-              <h3 className="text-lg font-bold text-gray-900">第五步：最终总结</h3>
+        <div className="bg-white rounded-lg shadow-sm border-2 border-green-200 p-7">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center space-x-3">
+              <CheckCircle2 className="w-6 h-6 text-green-600" />
+              <h3 className="text-xl font-bold text-gray-900">第五步：最终总结</h3>
             </div>
             <button
               onClick={handleImportStrategy}
-              className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-base"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-5 h-5" />
               <span>导入到策略共创</span>
             </button>
           </div>
 
           <div className="mb-6">
-            <h4 className="font-semibold text-gray-900 mb-2">总结</h4>
-            <p className="text-gray-700 whitespace-pre-line">{analysisResult.step5.finalSummary}</p>
+            <h4 className="font-semibold text-base text-gray-900 mb-3">总结</h4>
+            <p className="text-base text-gray-700 whitespace-pre-line leading-relaxed">{analysisResult.step5.finalSummary}</p>
           </div>
 
           <div>
-            <h4 className="font-semibold text-gray-900 mb-4">所有策略目标及实现方式</h4>
-            <div className="space-y-4">
+            <h4 className="font-semibold text-base text-gray-900 mb-5">所有策略目标及实现方式</h4>
+            <div className="space-y-5">
               {analysisResult.step5.strategyGoals.map((goal, idx) => (
-                <div key={goal.strategyId} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                  <div className="font-semibold text-gray-900 mb-2">
+                <div key={goal.strategyId} className="border border-gray-200 rounded-lg p-5 bg-gray-50">
+                  <div className="font-semibold text-base text-gray-900 mb-3">
                     策略建议 {idx + 1}：{goal.goal}
                   </div>
-                  <div className="text-sm text-gray-700">
+                  <div className="text-base text-gray-700 leading-relaxed">
                     <span className="font-medium">实现方式：</span>
                     {goal.implementation}
                   </div>

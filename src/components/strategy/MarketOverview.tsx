@@ -941,11 +941,11 @@ function ProblemIdentification({
   // }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-center mb-6">
-        <div className="flex items-center space-x-2">
-          <AlertCircle className="w-6 h-6 text-red-500" />
-          <h3 className="text-xl font-bold text-gray-900">问题定位</h3>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-7">
+      <div className="flex items-center justify-center mb-7">
+        <div className="flex items-center space-x-3">
+          <AlertCircle className="w-7 h-7 text-red-500" />
+          <h3 className="text-2xl font-bold text-gray-900">问题定位</h3>
         </div>
       </div>
 
@@ -956,7 +956,7 @@ function ProblemIdentification({
             onClick={handleAIAnalysis}
             disabled={aiAnalysisLoading || mekkoData.length === 0}
             className={clsx(
-              'flex flex-col items-center justify-center space-y-3 px-8 py-6 rounded-xl text-base font-semibold transition-all transform hover:scale-105',
+              'flex flex-col items-center justify-center space-y-3 px-8 py-6 rounded-xl text-lg font-semibold transition-all transform hover:scale-105',
               aiAnalysisLoading || mekkoData.length === 0
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 : 'bg-gradient-to-r from-primary-600 to-primary-700 text-white hover:from-primary-700 hover:to-primary-800 shadow-lg'
@@ -971,7 +971,7 @@ function ProblemIdentification({
               <>
                 <Sparkles className="w-8 h-8" />
                 <span>AI智能分析</span>
-                <span className="text-sm font-normal opacity-90">点击开始分析市场问题</span>
+                <span className="text-base font-normal opacity-90">点击开始分析市场问题</span>
               </>
             )}
           </button>
@@ -980,11 +980,11 @@ function ProblemIdentification({
 
       {/* 进度更新显示 */}
       {progressMessage && (
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-5">
           <div className="flex items-center space-x-3">
-            <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900">{progressMessage}</p>
+              <p className="text-base font-medium text-blue-900 leading-relaxed">{progressMessage}</p>
             </div>
           </div>
         </div>
@@ -992,21 +992,21 @@ function ProblemIdentification({
 
       {/* AI分析结果 */}
       {showAIAnalysis && (
-        <div className="mb-6 border-t pt-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <Sparkles className="w-5 h-5 text-primary-600" />
-            <h4 className="text-lg font-semibold text-gray-900">AI智能分析结果</h4>
+        <div className="mb-6 border-t pt-7">
+          <div className="flex items-center space-x-3 mb-5">
+            <Sparkles className="w-6 h-6 text-primary-600" />
+            <h4 className="text-xl font-semibold text-gray-900">AI智能分析结果</h4>
           </div>
 
           {/* 步骤1：剪刀差分析 */}
           {currentStep && currentStep !== null && (
             <div className="mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <h5 className="text-md font-semibold text-gray-800">
+              <div className="flex items-center justify-between mb-4">
+                <h5 className="text-lg font-semibold text-gray-800">
                   第一步：全面扫描数据，生成剪刀差 {aiScissorsGaps.length > 0 && `(${aiScissorsGaps.length}/10)`}
                 </h5>
                 {editingGaps && (
-                  <span className="text-xs text-gray-500">编辑模式：可删除或添加条目（AI已自动合并重复项目）</span>
+                  <span className="text-sm text-gray-500">编辑模式：可删除或添加条目（AI已自动合并重复项目）</span>
                 )}
               </div>
               
@@ -1026,8 +1026,8 @@ function ProblemIdentification({
                           <span className="text-lg">×</span>
                         </button>
                       )}
-                      <div className="font-semibold text-gray-900 mb-2">{gap.title}</div>
-                      <div className="text-sm text-gray-700">
+                      <div className="font-semibold text-base text-gray-900 mb-3">{gap.title}</div>
+                      <div className="text-base text-gray-700 leading-relaxed">
                         <span className="font-medium">现象：</span>
                         {gap.phenomenon}
                       </div>
@@ -1038,8 +1038,8 @@ function ProblemIdentification({
               )}
 
               {editingGaps && (
-                <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50 mb-4">
-                  <h6 className="text-sm font-medium text-gray-700 mb-3">添加新剪刀差</h6>
+                <div className="border border-dashed border-gray-300 rounded-lg p-5 bg-gray-50 mb-4">
+                  <h6 className="text-base font-medium text-gray-700 mb-4">添加新剪刀差</h6>
                   <div className="space-y-3">
                     <input
                       type="text"
@@ -1092,12 +1092,12 @@ function ProblemIdentification({
           {/* 步骤2：深挖背后原因 */}
           {(currentStep === 'causes' || currentStep === 'strategies') && (
             <div className="mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <h5 className="text-md font-semibold text-gray-800">
+              <div className="flex items-center justify-between mb-4">
+                <h5 className="text-lg font-semibold text-gray-800">
                   第二步：深挖背后原因（优先使用数据库维度，必要时联网搜索） {aiCauses.length > 0 && `(${aiCauses.length}/5)`}
                 </h5>
                 {editingCauses && (
-                  <span className="text-xs text-gray-500">编辑模式：可删除条目</span>
+                  <span className="text-sm text-gray-500">编辑模式：可删除条目</span>
                 )}
               </div>
               
@@ -1117,9 +1117,9 @@ function ProblemIdentification({
                           <span className="text-lg">×</span>
                         </button>
                       )}
-                      <div className="font-semibold text-gray-900 mb-3">{cause.problem}</div>
+                      <div className="font-semibold text-base text-gray-900 mb-4">{cause.problem}</div>
                       {cause.statement && (
-                        <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none">
+                        <div className="text-base text-gray-700 leading-relaxed prose prose-base max-w-none">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
                             {cause.statement}
                           </ReactMarkdown>
